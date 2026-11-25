@@ -1,0 +1,23 @@
+# Vexto Pulse web server: the status page and /api/status.
+# Assumes the repo is at /home/pi/vexto-pulse and runs as user "pi" (see README to change).
+[Unit]
+Description=Vexto Pulse status page
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/vexto-pulse
+Environment=PORT=3000 HOST=127.0.0.1
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning --max-semi-space-size=1 dist/server.js
+Restart=always
+RestartSec=5
+MemoryMax=100M
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/pi/vexto-pulse/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

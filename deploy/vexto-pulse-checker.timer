@@ -1,0 +1,11 @@
+# Runs the checker every 5 minutes (:00, :05, :10 …). Persistent catches up after a reboot.
+[Unit]
+Description=Run Vexto Pulse checker every 5 minutes
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target
