@@ -12,6 +12,8 @@ export function renderPage(s: Status): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#e9eeeb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
 <title>${esc(headline(s))} · Vexto Pulse</title>
 <meta name="description" content="Live status of the apps in the vexto.app portfolio.">
 <style>${CSS}</style>
@@ -60,7 +62,7 @@ function renderApp(a: AppStatus): string {
       ? ''
       : `<span class="${a.tls_days < TLS_WARN_DAYS ? 'warn' : ''}">Certificate valid ${a.tls_days} more day${a.tls_days === 1 ? '' : 's'}</span>`;
   const now =
-    a.state === 'unknown' ? '' : a.ms != null && a.state === 'up' ? `${a.ms} ms` : esc(a.error ?? 'Failed');
+    a.state === 'unknown' ? '' : a.ms != null && a.state === 'up' ? `${a.ms}&nbsp;ms` : esc(plainError(a.error));
   return `
     <li class="app state-${a.state}">
       <div class="app-head">
@@ -126,6 +128,16 @@ function sparkline(values: (number | null)[]): string {
       </svg>
       <div class="spark-axis muted" aria-hidden="true"><span>24 hours ago</span><span>now</span></div>`;
 }
+
+// Plain-language versions of common network errors; anything else is shown as-is.
+const ERRORS: Record<string, string> = {
+  ENOTFOUND: 'Domain not found',
+  ECONNREFUSED: 'Connection refused',
+  ECONNRESET: 'Connection dropped',
+  CERT_HAS_EXPIRED: 'Certificate expired',
+  ERR_TLS_CERT_ALTNAME_INVALID: 'Certificate does not match domain',
+};
+const plainError = (code: string | null) => (code ? (ERRORS[code] ?? code) : 'Failed');
 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
