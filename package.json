@@ -4,12 +4,14 @@
   "description": "Uptime monitor and public status page for the vexto.app portfolio",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24.6" },
+  "engines": {
+    "node": ">=24.6"
+  },
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning src/server.ts",
-    "check": "node --disable-warning=ExperimentalWarning src/checker.ts",
-    "test": "node --disable-warning=ExperimentalWarning --test 'test/**/*.test.ts'",
-    "typecheck": "tsc --noEmit"
+    "build": "tsc",
+    "start": "node --disable-warning=ExperimentalWarning dist/server.js",
+    "check": "node --disable-warning=ExperimentalWarning dist/checker.js",
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/node": "^26.6.7",
