@@ -61,9 +61,13 @@ export function getStatus(db: DatabaseSync, apps: App[], now = Date.now()): Stat
     };
   });
 
+  // Only apps still in apps.json, so a removed app's open incident doesn't show as ongoing forever.
   const incidents = db
-    .prepare('SELECT app, started_at, ended_at, duration_s FROM incidents ORDER BY started_at DESC LIMIT 10')
-    .all() as Incident[];
+    .prepare(
+      `SELECT app, started_at, ended_at, duration_s FROM incidents
+       WHERE app IN (SELECT value FROM json_each(?)) ORDER BY started_at DESC LIMIT 10`,
+    )
+    .all(JSON.stringify(apps.map((a) => a.name))) as Incident[];
 
   return { generated_at: now, overall: overallOf(appStatuses), apps: appStatuses, incidents };
 }

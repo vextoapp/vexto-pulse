@@ -6,6 +6,7 @@ const SLOTS_24H = 288; // one check every 5 minutes
 
 export function renderPage(s: Status): string {
   const lastCheck = Math.max(0, ...s.apps.map((a) => a.checked_at ?? 0));
+  const title = esc(headline(s));
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -14,7 +15,7 @@ export function renderPage(s: Status): string {
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#e9eeeb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
-<title>${esc(headline(s))} · Vexto Pulse</title>
+<title>${title} · Vexto Pulse</title>
 <meta name="description" content="Live status of the apps in the vexto.app portfolio.">
 <style>${CSS}</style>
 </head>
@@ -22,7 +23,7 @@ export function renderPage(s: Status): string {
 <main>
   <header class="top">
     <p class="brand"><span class="led led-${s.overall}" aria-hidden="true"></span>Vexto Pulse</p>
-    <h1>${esc(headline(s))}</h1>
+    <h1>${title}</h1>
     <p class="sub">${lastCheck ? `Checked every 5 minutes. Last check ${ago(s.generated_at - lastCheck)}.` : 'The first check runs within 5 minutes.'}</p>
   </header>
 
@@ -50,7 +51,9 @@ function headline(s: Status): string {
   if (s.overall === 'major_outage') return 'All apps are down';
   if (down.length) return `${list(down)} ${down.length === 1 ? 'is' : 'are'} down`;
   if (shaky.length) return `${list(shaky)} failed the last check`;
-  return s.apps.length === 1 ? 'The app is up' : `All ${s.apps.length} apps are up`;
+  const up = s.apps.filter((a) => a.state === 'up').length;
+  if (up < s.apps.length) return `${up} of ${s.apps.length} apps are up`; // the rest have no data yet
+  return up === 1 ? 'The app is up' : `All ${up} apps are up`;
 }
 
 const STATE_LABEL = { up: 'Up', degraded: 'Failed last check', down: 'Down', unknown: 'No data yet' };
@@ -139,8 +142,8 @@ const ERRORS: Record<string, string> = {
 };
 const plainError = (code: string | null) => (code ? (ERRORS[code] ?? code) : 'Failed');
 
-const esc = (s: string) =>
-  s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
 
 const list = (names: string[]) =>
   names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;

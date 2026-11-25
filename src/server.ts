@@ -12,13 +12,18 @@ const apps = loadApps();
 const db = openDb();
 
 const server = createServer((req, res) => {
-  const path = new URL(req.url ?? '/', 'http://localhost').pathname;
   const send = (code: number, type: string, body: string) => {
-    res.writeHead(code, { 'content-type': type, 'cache-control': 'public, max-age=60' });
+    res.writeHead(code, { 'content-type': type, 'cache-control': code === 200 ? 'public, max-age=60' : 'no-store' });
     res.end(req.method === 'HEAD' ? undefined : body);
   };
 
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(405, 'text/plain', 'Method not allowed');
+  let path: string;
+  try {
+    path = new URL(req.url ?? '/', 'http://localhost').pathname;
+  } catch {
+    return send(400, 'text/plain', 'Bad request');
+  }
   try {
     if (path === '/') return send(200, 'text/html; charset=utf-8', renderPage(getStatus(db, apps)));
     if (path === '/api/status') return send(200, 'application/json', JSON.stringify(getStatus(db, apps)));
