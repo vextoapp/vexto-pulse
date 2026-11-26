@@ -1,0 +1,8 @@
+{
+  "start": "2026-11-25T00:00:00Z",
+  "end": "2026-11-27T00:00:00Z",
+  "intervals": ["2026-11-25T00:00:00Z", "2026-11-26T00:00:00Z"],
+  "groups": [
+    { "by": { "project": 1 }, "totals": { "sum(quantity)": 3 }, "series": { "sum(quantity)": [3, 0] } }
+  ]
+}

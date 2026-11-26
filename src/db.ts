@@ -50,6 +50,14 @@ export function openDb(path = process.env.PULSE_DB ?? 'data/pulse.db'): Database
       error          TEXT
     ) STRICT;
     CREATE INDEX IF NOT EXISTS pagespeed_app_ts ON pagespeed (app, ts);
+
+    -- Accepted Sentry error events per app per UTC day. No rows for an app = no Sentry project.
+    CREATE TABLE IF NOT EXISTS sentry_daily (
+      app    TEXT NOT NULL,
+      day    TEXT NOT NULL,
+      errors INTEGER NOT NULL,
+      PRIMARY KEY (app, day)
+    ) STRICT;
   `);
   return db;
 }
