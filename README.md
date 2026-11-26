@@ -17,11 +17,12 @@ Every 5 minutes it checks each app's HTTP status, response time and TLS certific
 | `src/checker.ts` | One run: check all apps, store results, update incidents, refresh rollups, prune. Started every 5 minutes by a systemd timer, then exits |
 | `src/server.ts` | Small `node:http` server for the page and the JSON |
 | `src/incidents.ts` | The incident rule, as a pure function with tests |
+| `src/insights.ts` | Daily job for PageSpeed scores and Sentry error counts (see [Insights](#insights-v2)) |
 | `data/pulse.db` | SQLite via the built-in `node:sqlite` (created on first run) |
 
 There are no runtime dependencies. TypeScript compiles to `dist/` with `tsc`.
 
-**Memory.** The web server measures about 65 MB RSS on a Mac (expect a little less on the Pi), with a hard 100 MB cap set in systemd. The checker peaks at about 64 MB but only lives for 1–2 seconds every 5 minutes. Two choices keep this low: production runs compiled JavaScript (running `.ts` directly costs about 25 MB more per process), and checks use `node:https` instead of `fetch()` (`fetch` costs about 50 MB more).
+**Memory.** The web server measures about 63–71 MB RSS on the Pi, and `cloudflared` adds about 40 MB. The units set `MemoryMax=100M`, but Raspberry Pi OS boots with `cgroup_disable=memory`, so systemd does not enforce that cap there. The checker peaks at about 64 MB but only lives for 1–2 seconds every 5 minutes. Two choices keep this low: production runs compiled JavaScript (running `.ts` directly costs about 25 MB more per process), and checks use `node:https` instead of `fetch()` (`fetch` costs about 50 MB more).
 
 ## Run it locally
 
@@ -82,10 +83,12 @@ npm run check   # one manual run to confirm it works
 **4. Install the systemd units:**
 
 ```bash
-sudo cp deploy/vexto-pulse-web.service deploy/vexto-pulse-checker.service deploy/vexto-pulse-checker.timer /etc/systemd/system/
+sudo cp deploy/vexto-pulse-* /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now vexto-pulse-web vexto-pulse-checker.timer
+sudo systemctl enable --now vexto-pulse-web vexto-pulse-checker.timer vexto-pulse-insights.timer
 ```
+
+The insights timer needs `/etc/vexto-pulse/env` first (see [Insights](#insights-v2)). Without it, its runs fail and the rest keeps working.
 
 Check it:
 
@@ -111,38 +114,55 @@ This pulls, runs `npm ci`, builds and restarts the web server. The checker uses 
 
 ### Make it public at status.vexto.app
 
-The server only listens on `127.0.0.1`, so nothing on your home network is exposed. The simplest way to publish it is a **Cloudflare Tunnel**: an outbound connection from the Pi to Cloudflare, with no router port forwarding. It needs the `vexto.app` DNS zone to be on Cloudflare.
+The server only listens on `127.0.0.1`, so nothing on your home network is exposed. It's published through a **Cloudflare Tunnel**: an outbound connection from the Pi to Cloudflare, with no router port forwarding. It needs the `vexto.app` DNS zone on Cloudflare.
 
-1. Install `cloudflared` for Debian arm64 from Cloudflare's [downloads page](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/).
-2. Create the tunnel and DNS record:
-
-   ```bash
-   cloudflared tunnel login
-   cloudflared tunnel create vexto-pulse
-   cloudflared tunnel route dns vexto-pulse status.vexto.app
-   ```
-
-3. Create `~/.cloudflared/config.yml`:
-
-   ```yaml
-   tunnel: <TUNNEL_ID>
-   credentials-file: /home/pi/.cloudflared/<TUNNEL_ID>.json
-   ingress:
-     - hostname: status.vexto.app
-       service: http://127.0.0.1:3000
-     - service: http_status:404
-   ```
-
-4. Run it as a service:
+1. On the Pi, install `cloudflared` from Cloudflare's apt repository ([downloads page](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/)).
+2. In the Cloudflare dashboard, go to Zero Trust → Networks → Tunnels and create a tunnel (`vexto-pulse`, type Cloudflared).
+3. Cloudflare shows an install command with a token. Run the "install as a service" version on the Pi, so it starts on boot:
 
    ```bash
-   sudo cloudflared --config /home/pi/.cloudflared/config.yml service install
+   sudo cloudflared service install <TOKEN>
    ```
+
+   Keep the token private; anyone with it can run your tunnel.
+4. In the tunnel, add a published application: subdomain `status`, domain `vexto.app`, service `http://127.0.0.1:3000`. Cloudflare creates the proxied DNS record itself.
+
+Check it: `systemctl status cloudflared`, and the tunnel shows one healthy connector in the dashboard.
+
+## Insights (v2)
+
+A private page at `/insights` shows each app's PageSpeed scores (mobile, weekly), Sentry errors (last 7 days and the week before), 30-day uptime, and a "needs attention" list. An app needs attention when it has any errors this week, performance below 50, accessibility below 90, uptime below 99%, or a certificate expiring within 14 days.
+
+`src/insights.ts` runs daily at 04:30 (`vexto-pulse-insights.timer`). Each run pulls Sentry; PageSpeed runs when the last run is 6 or more days old. Run it by hand with `npm run insights` (set `PULSE_FORCE_PAGESPEED=1` to rerun PageSpeed early).
+
+**Secrets.** The job reads them from `/etc/vexto-pulse/env`, owned by root with mode 600:
+
+```bash
+sudo mkdir -p /etc/vexto-pulse
+sudo install -m 600 /dev/null /etc/vexto-pulse/env
+sudo nano /etc/vexto-pulse/env
+```
+
+```ini
+PAGESPEED_KEY=...
+SENTRY_TOKEN=...
+SENTRY_ORG=vexto-apps
+SENTRY_HOST=de.sentry.io
+```
+
+- **PageSpeed key:** Google Cloud console → enable the PageSpeed Insights API → Credentials → create an API key and restrict it to that API.
+- **Sentry token:** Sentry → User settings → Personal tokens, with scopes `org:read` and `project:read` only.
+
+A missing key or token skips that source; the rest still runs.
+
+**Linking Sentry projects.** An app links to the Sentry project whose slug is its name in lower case with spaces and punctuation turned into hyphens: `PageTurn` → `pageturn`, `Lenny's Product Brain` → `lenny-s-product-brain`. Apps without a match show "not set up".
+
+**Keep it private.** The page has no login of its own. Protect it with Cloudflare Access (free for up to 50 users): Zero Trust → Access → Applications → Add → Self-hosted, domain `status.vexto.app`, path `insights`, with a policy that allows only your email address (one-time PIN login). Check it from a private window: `/insights` should ask you to log in, and `/` should not.
 
 ## Roadmap
 
-- **v1, is it alive** (this): checks every app every 5 minutes, public status page.
-- **v2, is it good:** PageSpeed scores and Sentry error counts, combined into a health score.
+- **v1, is it alive:** checks every app every 5 minutes, public status page.
+- **v2, is it good** (this): weekly PageSpeed scores and daily Sentry error counts on a private insights page. Usage numbers follow once the apps move off Lovable.
 - **v3, what should I do:** a Monday email summary with a suggested focus.
 - **v4, make it physical:** one LED per app on the Pi's GPIO pins (green, amber, red).
 - **v5 and beyond:** public changelog, experiment log, usage numbers, roadmap scoring.

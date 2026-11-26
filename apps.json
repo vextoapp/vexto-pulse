@@ -22,6 +22,7 @@
   { "name": "PhantomID", "url": "https://phantomid.vexto.app", "category": "Privacy and security" },
   { "name": "Switchboard", "url": "https://switchboard.vexto.app", "category": "Utilities" },
   { "name": "JetLag", "url": "https://jetlag.vexto.app", "category": "Utilities" },
+  { "name": "Kata", "url": "https://kata.vexto.app", "category": "Productivity and creativity" },
   { "name": "Mohammad Syed", "url": "https://mohammadsyed.com", "category": "Personal website" },
   { "name": "DevVibe", "url": "https://devvibe.xyz", "category": "Personal website" }
 ]
