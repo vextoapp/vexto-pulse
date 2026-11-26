@@ -1,5 +1,27 @@
 [
+  { "name": "Vexto", "url": "https://vexto.app", "category": "Portfolio" },
   { "name": "Stackmark", "url": "https://stackmark.dev", "category": "Developer tools" },
   { "name": "Uswati", "url": "https://uswati.com", "category": "Product" },
-  { "name": "Vexto", "url": "https://vexto.app", "category": "Portfolio" }
+  { "name": "AuraTimer", "url": "https://auratimer.vexto.app", "category": "Productivity and creativity" },
+  { "name": "IdeaSpark", "url": "https://ideaspark.vexto.app", "category": "Productivity and creativity" },
+  { "name": "NoteSprout", "url": "https://notesprout.vexto.app", "category": "Productivity and creativity" },
+  { "name": "PixelPalette", "url": "https://pixelpalette.vexto.app", "category": "Productivity and creativity" },
+  { "name": "Lenny's Product Brain", "url": "https://lennysproductbrain.vexto.app", "category": "Productivity and creativity" },
+  { "name": "Mulch", "url": "https://mulch.vexto.app", "category": "Productivity and creativity" },
+  { "name": "Basil", "url": "https://basil.vexto.app", "category": "Everyday life and wellbeing" },
+  { "name": "Luna", "url": "https://luna.vexto.app", "category": "Everyday life and wellbeing" },
+  { "name": "Forked", "url": "https://forked.vexto.app", "category": "Everyday life and wellbeing" },
+  { "name": "PageTurn", "url": "https://pageturn.vexto.app", "category": "Everyday life and wellbeing" },
+  { "name": "BusyBee", "url": "https://busybee.vexto.app", "category": "Family" },
+  { "name": "FamilySync", "url": "https://familysync.vexto.app", "category": "Family" },
+  { "name": "Cashew", "url": "https://cashew.vexto.app", "category": "Money and administration" },
+  { "name": "SubTrack", "url": "https://subtrack.vexto.app", "category": "Money and administration" },
+  { "name": "TallyPal", "url": "https://tallypal.vexto.app", "category": "Money and administration" },
+  { "name": "EclipSend", "url": "https://eclipsend.vexto.app", "category": "Privacy and security" },
+  { "name": "PrivacyNest", "url": "https://privacynest.vexto.app", "category": "Privacy and security" },
+  { "name": "PhantomID", "url": "https://phantomid.vexto.app", "category": "Privacy and security" },
+  { "name": "Switchboard", "url": "https://switchboard.vexto.app", "category": "Utilities" },
+  { "name": "JetLag", "url": "https://jetlag.vexto.app", "category": "Utilities" },
+  { "name": "Mohammad Syed", "url": "https://mohammadsyed.com", "category": "Personal website" },
+  { "name": "DevVibe", "url": "https://devvibe.xyz", "category": "Personal website" }
 ]
