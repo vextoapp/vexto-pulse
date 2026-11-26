@@ -33,3 +33,18 @@ test('runPagespeed returns error and null scores when the API fails', async () =
     server.close();
   }
 });
+
+test('pagespeedDue ignores failed runs', async () => {
+  const { openDb } = await import('../src/db.ts');
+  const { pagespeedDue } = await import('../src/pagespeed.ts');
+  const db = openDb(':memory:');
+  const DAY = 86_400_000, now = Date.parse('2026-11-26T04:30:00Z');
+  const ins = db.prepare('INSERT INTO pagespeed (app, ts, performance, error) VALUES (?, ?, ?, ?)');
+  assert.equal(pagespeedDue(db, now), true); // never ran
+  ins.run('A', now - DAY, null, 'HTTP 403');
+  assert.equal(pagespeedDue(db, now), true); // only a failed run
+  ins.run('A', now - 2 * DAY, 80, null);
+  assert.equal(pagespeedDue(db, now), false); // good run 2 days ago
+  ins.run('B', now - 7 * DAY, 80, null);
+  assert.equal(pagespeedDue(db, now - 0), false);
+});

@@ -81,3 +81,28 @@ test('uptime under 99% adds a reason', () => {
   const [row] = getInsights(db, [app('A')], NOW).rows;
   assert.deepEqual(row.reasons, ['Uptime 98.0%']);
 });
+
+test('failed latest PageSpeed run shows as failed and keeps a reason', () => {
+  const { db } = setup();
+  const ins = db.prepare(
+    'INSERT INTO pagespeed (app, ts, performance, accessibility, best_practices, seo, error) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  ins.run('A', NOW - 8 * DAY, 38, 80, 100, 92, null);
+  ins.run('A', NOW - DAY, null, null, null, null, 'HTTP 429');
+  const [row] = getInsights(db, [app('A')], NOW).rows;
+  assert.equal(row.scores, null);
+  assert.equal(row.pagespeed_error, 'HTTP 429');
+  assert.deepEqual(row.reasons, ['PageSpeed failed: HTTP 429']);
+});
+
+test('previous skips failed runs', () => {
+  const { db } = setup();
+  const ins = db.prepare(
+    'INSERT INTO pagespeed (app, ts, performance, accessibility, best_practices, seo, error) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  ins.run('A', NOW - 15 * DAY, 44, 95, 100, 92, null);
+  ins.run('A', NOW - 8 * DAY, null, null, null, null, 'HTTP 429');
+  ins.run('A', NOW - DAY, 38, 95, 100, 92, null);
+  const [row] = getInsights(db, [app('A')], NOW).rows;
+  assert.equal(row.previous?.performance, 44);
+});

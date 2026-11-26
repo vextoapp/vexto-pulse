@@ -30,3 +30,8 @@ test('renderInsights says nothing needs attention when no reasons', () => {
   const html = renderInsights({ generated_at: NOW, rows: [row({})] });
   assert.match(html, /Nothing needs attention\./);
 });
+
+test('renderInsights shows a failed PageSpeed run', () => {
+  const html = renderInsights({ generated_at: NOW, rows: [row({ pagespeed_error: 'HTTP 429', pagespeed_at: NOW })] });
+  assert.match(html, /Failed: HTTP 429/);
+});

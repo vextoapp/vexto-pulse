@@ -2,11 +2,8 @@
 // Run at 04:30 by the systemd timer (deploy/vexto-pulse-insights.timer). Secrets come from env.
 import { loadApps } from './config.ts';
 import { openDb } from './db.ts';
-import { runPagespeed } from './pagespeed.ts';
+import { pagespeedDue, runPagespeed } from './pagespeed.ts';
 import { fetchSentryDaily, sentrySlug } from './sentry.ts';
-
-const DAY_MS = 86_400_000;
-const PAGESPEED_EVERY_DAYS = 6;
 
 const apps = loadApps();
 const db = openDb();
@@ -46,12 +43,10 @@ try {
 
   // PageSpeed
   const key = process.env.PAGESPEED_KEY;
-  const last = (db.prepare('SELECT max(ts) AS ts FROM pagespeed').get()?.ts as number | null) ?? null;
-  const ageDays = last == null ? null : (ts - last) / DAY_MS;
   if (!key) {
     console.log('PageSpeed: skipped (no PAGESPEED_KEY)');
-  } else if (ageDays != null && ageDays < PAGESPEED_EVERY_DAYS && process.env.PULSE_FORCE_PAGESPEED !== '1') {
-    console.log(`PageSpeed: skipped (ran ${ageDays.toFixed(1)} days ago)`);
+  } else if (!pagespeedDue(db, ts) && process.env.PULSE_FORCE_PAGESPEED !== '1') {
+    console.log('PageSpeed: skipped (last successful run was under 6 days ago)');
   } else {
     const insert = db.prepare(
       'INSERT INTO pagespeed (app, ts, performance, accessibility, best_practices, seo, error) VALUES (?, ?, ?, ?, ?, ?, ?)',

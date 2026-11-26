@@ -9,7 +9,8 @@ Wants=network-online.target
 Type=oneshot
 User=pi
 WorkingDirectory=/home/pi/vexto-pulse
-EnvironmentFile=/etc/vexto-pulse/env
+# The leading '-' lets the job run (and skip both sources) if the env file doesn't exist yet.
+EnvironmentFile=-/etc/vexto-pulse/env
 ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/insights.js
 TimeoutStartSec=60min
 MemoryMax=100M

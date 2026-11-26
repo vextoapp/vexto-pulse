@@ -1,4 +1,5 @@
 // Google PageSpeed Insights: Lighthouse scores (0–100) for one URL, mobile strategy.
+import type { DatabaseSync } from 'node:sqlite';
 import { getJson } from './http.ts';
 
 export type Scores = {
@@ -39,4 +40,13 @@ export async function runPagespeed(url: string, key: string): Promise<Scores & {
     }
   }
   return { performance: null, accessibility: null, best_practices: null, seo: null, error };
+}
+
+const RUN_EVERY_MS = 6 * 86_400_000;
+
+// PageSpeed is due when no successful run happened in the last 6 days. Failed runs don't count,
+// so a bad key or quota error is retried the next day instead of blocking scores for a week.
+export function pagespeedDue(db: DatabaseSync, now = Date.now()): boolean {
+  const last = db.prepare('SELECT max(ts) AS ts FROM pagespeed WHERE error IS NULL').get()?.ts as number | null;
+  return last == null || now - last >= RUN_EVERY_MS;
 }

@@ -26,7 +26,11 @@ export function getInsights(db: DatabaseSync, apps: App[], now = Date.now()): In
   const uptimeQ = db.prepare('SELECT sum(ok) * 100.0 / nullif(count(*), 0) AS u FROM checks WHERE app = ? AND ts >= ?');
   const tlsQ = db.prepare('SELECT tls_days FROM checks WHERE app = ? ORDER BY ts DESC LIMIT 1');
   const psQ = db.prepare(
-    'SELECT ts, performance, accessibility, best_practices, seo, error FROM pagespeed WHERE app = ? ORDER BY ts DESC LIMIT 2',
+    'SELECT ts, performance, accessibility, best_practices, seo, error FROM pagespeed WHERE app = ? ORDER BY ts DESC LIMIT 1',
+  );
+  // The comparison point is the last successful run before the latest one; failed runs have no scores.
+  const prevQ = db.prepare(
+    'SELECT performance, accessibility, best_practices, seo FROM pagespeed WHERE app = ? AND ts < ? AND error IS NULL ORDER BY ts DESC LIMIT 1',
   );
   const errQ = db.prepare(`
     SELECT count(*) AS n,
@@ -42,7 +46,9 @@ export function getInsights(db: DatabaseSync, apps: App[], now = Date.now()): In
   const rows = apps.map((app): InsightRow => {
     const uptime = (uptimeQ.get(app.name, now - 30 * DAY_MS)?.u as number | null) ?? null;
     const tls = (tlsQ.get(app.name)?.tls_days as number | null) ?? null;
-    const [latest, before] = psQ.all(app.name);
+    const latest = psQ.get(app.name);
+    const before = latest ? prevQ.get(app.name, latest.ts as number) : undefined;
+    const failed = latest?.error != null;
     const err = errQ.get({ app: app.name, week, prev })!;
     const linked = (err.n as number) > 0;
     const row: InsightRow = {
@@ -50,7 +56,7 @@ export function getInsights(db: DatabaseSync, apps: App[], now = Date.now()): In
       url: app.url,
       uptime_30d: uptime,
       tls_days: tls,
-      scores: latest ? toScores(latest) : null,
+      scores: latest && !failed ? toScores(latest) : null,
       previous: before ? toScores(before) : null,
       pagespeed_at: latest ? (latest.ts as number) : null,
       pagespeed_error: latest ? ((latest.error as string | null) ?? null) : null,
@@ -79,6 +85,7 @@ function toScores(r: Record<string, unknown>): Scores {
 function reasonsFor(r: InsightRow): string[] {
   const out: string[] = [];
   if (r.errors_7d != null && r.errors_7d > 0) out.push(`${r.errors_7d} error${r.errors_7d === 1 ? '' : 's'} this week`);
+  if (r.pagespeed_error) out.push(`PageSpeed failed: ${r.pagespeed_error}`);
   const p = r.scores?.performance;
   if (p != null && p < 50) out.push(`Performance ${p}`);
   const a = r.scores?.accessibility;
