@@ -143,12 +143,12 @@ const ERRORS: Record<string, string> = {
 const plainError = (code: string | null) => (code ? (ERRORS[code] ?? code) : 'Failed');
 
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
+export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ESC[c]);
 
 const list = (names: string[]) =>
   names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 
-const pct = (v: number | null) => (v == null ? '–' : Number.isInteger(v) ? `${v}%` : `${v.toFixed(2)}%`);
+export const pct = (v: number | null) => (v == null ? '–' : Number.isInteger(v) ? `${v}%` : `${v.toFixed(2)}%`);
 
 function ago(ms: number): string {
   const min = Math.round(ms / 60_000);
@@ -164,13 +164,13 @@ function duration(s: number): string {
   return `${Math.floor(s / 86_400)} d ${Math.round((s % 86_400) / 3600)} h`;
 }
 
-function time(ts: number): string {
+export function time(ts: number): string {
   const d = new Date(ts);
   const text = d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
   return `<time datetime="${d.toISOString()}" data-local>${text} UTC</time>`;
 }
 
-const CSS = `
+export const CSS = `
 :root{
   --paper:#e9eeeb;--surface:#f6f8f7;--ink:#17211d;--muted:#5b6862;--rule:#cdd6d1;
   --up:#1d8a57;--warn:#a86a10;--down:#c23b2a;--idle:#8a958f;--trace:#2b5d4a;

@@ -4,6 +4,8 @@ import { loadApps } from './config.ts';
 import { openDb } from './db.ts';
 import { getStatus } from './status.ts';
 import { renderPage } from './render.ts';
+import { getInsights } from './insights-model.ts';
+import { renderInsights } from './render-insights.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -27,6 +29,11 @@ const server = createServer((req, res) => {
   try {
     if (path === '/') return send(200, 'text/html; charset=utf-8', renderPage(getStatus(db, apps)));
     if (path === '/api/status') return send(200, 'application/json', JSON.stringify(getStatus(db, apps)));
+    if (path === '/insights') {
+      // Private: Cloudflare Access guards this path at the edge. Never cache or index it.
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
+      return res.end(req.method === 'HEAD' ? undefined : renderInsights(getInsights(db, apps)));
+    }
     send(404, 'text/plain', 'Not found');
   } catch (err) {
     console.error(err);
