@@ -26,3 +26,9 @@ test('parseDaily includes a project with no errors as zeros', () => {
     { day: '2026-11-26', errors: 0 },
   ]);
 });
+
+test('parseDaily still links projects when Sentry returns no days (no errors anywhere)', () => {
+  const now = Date.parse('2026-11-26T12:00:00Z');
+  const map = parseDaily({ intervals: [], groups: [] }, fixture('sentry-projects.json'), now);
+  assert.deepEqual(map.get('stackmark'), [{ day: '2026-11-26', errors: 0 }]);
+});

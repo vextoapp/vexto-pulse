@@ -11,9 +11,10 @@ export function sentrySlug(name: string): string {
 type Stats = { intervals?: string[]; groups?: { by?: { project?: number }; series?: Record<string, number[]> }[] };
 type Project = { id: string; slug: string };
 
-export function parseDaily(stats: unknown, projects: unknown): Map<string, Daily> {
+export function parseDaily(stats: unknown, projects: unknown, now = Date.now()): Map<string, Daily> {
   const { intervals = [], groups = [] } = stats as Stats;
-  const days = intervals.map((i) => i.slice(0, 10));
+  // With no errors anywhere Sentry can send no days; record today as 0 so projects still count as linked.
+  const days = intervals.length ? intervals.map((i) => i.slice(0, 10)) : [new Date(now).toISOString().slice(0, 10)];
   const series = new Map(groups.map((g) => [String(g.by?.project), g.series?.['sum(quantity)'] ?? []]));
 
   const out = new Map<string, Daily>();
