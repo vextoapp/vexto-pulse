@@ -29,8 +29,9 @@ const server = createServer((req, res) => {
   try {
     if (path === '/') return send(200, 'text/html; charset=utf-8', renderPage(getStatus(db, apps)));
     if (path === '/api/status') return send(200, 'application/json', JSON.stringify(getStatus(db, apps)));
-    if (path === '/insights') {
-      // Private: Cloudflare Access guards this path at the edge. Never cache or index it.
+    // Private: Cloudflare Access guards this path at the edge. Never cache or index it. Match the raw
+    // path, not the parsed one, so /x/%2e%2e/insights can't reach it past Access's path rule.
+    if (path === '/insights' && (req.url ?? '').split('?')[0] === '/insights') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
       return res.end(req.method === 'HEAD' ? undefined : renderInsights(getInsights(db, apps)));
     }
