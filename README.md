@@ -88,7 +88,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now vexto-pulse-web vexto-pulse-checker.timer vexto-pulse-insights.timer
 ```
 
-The insights timer needs `/etc/vexto-pulse/env` first (see [Insights](#insights-v2)). Without it, its runs fail and the rest keeps working.
+The insights timer needs `/etc/vexto-pulse/env` first (see [Insights](#insights-v2)). Without it, each run skips PageSpeed and Sentry, and the rest keeps working.
 
 Check it:
 
@@ -133,7 +133,7 @@ Check it: `systemctl status cloudflared`, and the tunnel shows one healthy conne
 
 A private page at `/insights` shows each app's PageSpeed scores (mobile, weekly), Sentry errors (last 7 days and the week before), 30-day uptime, and a "needs attention" list. An app needs attention when it has any errors this week, performance below 50, accessibility below 90, uptime below 99%, or a certificate expiring within 14 days.
 
-`src/insights.ts` runs daily at 04:30 (`vexto-pulse-insights.timer`). Each run pulls Sentry; PageSpeed runs when the last run is 6 or more days old. Run it by hand with `npm run insights` (set `PULSE_FORCE_PAGESPEED=1` to rerun PageSpeed early).
+`src/insights.ts` runs daily at 04:30 (`vexto-pulse-insights.timer`). Each run pulls Sentry; PageSpeed runs for every app when the last successful run is 6 or more days old, and in between retries only the apps whose last run failed. Run it by hand with `npm run insights` (set `PULSE_FORCE_PAGESPEED=1` to rerun PageSpeed early).
 
 **Secrets.** The job reads them from `/etc/vexto-pulse/env`, owned by root with mode 600:
 
@@ -155,7 +155,7 @@ SENTRY_HOST=de.sentry.io
 
 A missing key or token skips that source; the rest still runs.
 
-**Linking Sentry projects.** An app links to the Sentry project whose slug is its name in lower case with spaces and punctuation turned into hyphens: `PageTurn` → `pageturn`, `Lenny's Product Brain` → `lenny-s-product-brain`. Apps without a match show "not set up".
+**Linking Sentry projects.** An app links to the Sentry project whose slug is its name in lower case with apostrophes dropped and spaces and other punctuation turned into hyphens: `PageTurn` → `pageturn`, `Lenny's Product Brain` → `lennys-product-brain`. Apps without a match show "not set up".
 
 **Keep it private.** The page has no login of its own. Protect it with Cloudflare Access (free for up to 50 users): Zero Trust → Access → Applications → Add → Self-hosted, domain `status.vexto.app`, path `insights`, with a policy that allows only your email address (one-time PIN login). Check it from a private window: `/insights` should ask you to log in, and `/` should not.
 
