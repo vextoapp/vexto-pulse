@@ -7,7 +7,8 @@ const fixture = (f: string) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`
 
 test('sentrySlug lower-cases and hyphenates app names', () => {
   assert.equal(sentrySlug('PageTurn'), 'pageturn');
-  assert.equal(sentrySlug("Lenny's Product Brain"), 'lenny-s-product-brain');
+  assert.equal(sentrySlug("Lenny's Product Brain"), 'lennys-product-brain');
+  assert.equal(sentrySlug('Lenny’s Product Brain'), 'lennys-product-brain');
   assert.equal(sentrySlug('Mohammad Syed'), 'mohammad-syed');
 });
 

@@ -5,7 +5,7 @@ export type Daily = { day: string; errors: number }[];
 
 // An app links to the Sentry project whose slug is its name lower-cased and hyphenated.
 export function sentrySlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return name.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
 type Stats = { intervals?: string[]; groups?: { by?: { project?: number }; series?: Record<string, number[]> }[] };
