@@ -1,8 +1,8 @@
-// One daily run: Sentry error counts every run, PageSpeed scores when the last run is 6+ days old.
+// One daily run: Sentry error counts every run, PageSpeed scores weekly (failed apps are retried daily).
 // Run at 04:30 by the systemd timer (deploy/vexto-pulse-insights.timer). Secrets come from env.
 import { loadApps } from './config.ts';
 import { openDb } from './db.ts';
-import { pagespeedDue, runPagespeed } from './pagespeed.ts';
+import { failedApps, pagespeedDue, runPagespeed } from './pagespeed.ts';
 import { fetchSentryDaily, sentrySlug } from './sentry.ts';
 
 const apps = loadApps();
@@ -45,13 +45,22 @@ try {
   const key = process.env.PAGESPEED_KEY;
   if (!key) {
     console.log('PageSpeed: skipped (no PAGESPEED_KEY)');
-  } else if (!pagespeedDue(db, ts) && process.env.PULSE_FORCE_PAGESPEED !== '1') {
-    console.log('PageSpeed: skipped (last successful run was under 6 days ago)');
   } else {
+    // Weekly: every app. In between: only apps whose last run failed.
+    const full = pagespeedDue(db, ts) || process.env.PULSE_FORCE_PAGESPEED === '1';
+    const failed = failedApps(db);
+    const todo = full ? apps : apps.filter((a) => failed.has(a.name));
+    if (!full) {
+      console.log(
+        todo.length
+          ? `PageSpeed: retrying ${todo.length} failed app${todo.length === 1 ? '' : 's'}`
+          : 'PageSpeed: skipped (last successful run was under 6 days ago)',
+      );
+    }
     const insert = db.prepare(
       'INSERT INTO pagespeed (app, ts, performance, accessibility, best_practices, seo, error) VALUES (?, ?, ?, ?, ?, ?, ?)',
     );
-    for (const app of apps) {
+    for (const app of todo) {
       const r = await runPagespeed(app.url, key); // one at a time: responses are ~1 MB each
       insert.run(app.name, ts, r.performance, r.accessibility, r.best_practices, r.seo, r.error);
       console.log(

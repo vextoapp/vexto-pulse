@@ -50,3 +50,11 @@ export function pagespeedDue(db: DatabaseSync, now = Date.now()): boolean {
   const last = db.prepare('SELECT max(ts) AS ts FROM pagespeed WHERE error IS NULL').get()?.ts as number | null;
   return last == null || now - last >= RUN_EVERY_MS;
 }
+
+// Apps whose most recent run failed. They're retried daily between weekly runs.
+export function failedApps(db: DatabaseSync): Set<string> {
+  const rows = db
+    .prepare('SELECT app FROM pagespeed p WHERE ts = (SELECT max(ts) FROM pagespeed WHERE app = p.app) AND error IS NOT NULL')
+    .all();
+  return new Set(rows.map((r) => r.app as string));
+}

@@ -48,3 +48,15 @@ test('pagespeedDue ignores failed runs', async () => {
   ins.run('B', now - 7 * DAY, 80, null);
   assert.equal(pagespeedDue(db, now - 0), false);
 });
+
+test('failedApps lists apps whose latest run failed', async () => {
+  const { openDb } = await import('../src/db.ts');
+  const { failedApps } = await import('../src/pagespeed.ts');
+  const db = openDb(':memory:');
+  const ins = db.prepare('INSERT INTO pagespeed (app, ts, performance, error) VALUES (?, ?, ?, ?)');
+  ins.run('A', 1, 80, null);
+  ins.run('B', 1, null, 'Timed out after 60s');
+  ins.run('C', 1, null, 'HTTP 500');
+  ins.run('C', 2, 70, null); // C recovered on a later run
+  assert.deepEqual(failedApps(db), new Set(['B']));
+});
