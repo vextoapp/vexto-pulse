@@ -59,7 +59,7 @@ export function getInsights(db: DatabaseSync, apps: App[], now = Date.now()): In
       scores: latest && !failed ? toScores(latest) : null,
       previous: before ? toScores(before) : null,
       pagespeed_at: latest ? (latest.ts as number) : null,
-      pagespeed_error: latest ? ((latest.error as string | null) ?? null) : null,
+      pagespeed_error: (latest?.error as string | null | undefined) ?? null,
       errors_7d: linked ? ((err.this_week as number) ?? 0) : null,
       errors_prev_7d: linked ? ((err.last_week as number) ?? 0) : null,
       reasons: [],
