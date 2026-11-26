@@ -38,6 +38,18 @@ export function openDb(path = process.env.PULSE_DB ?? 'data/pulse.db'): Database
       avg_ms    REAL,
       PRIMARY KEY (app, day)
     ) STRICT;
+
+    -- v2 insights. Scores are 0–100, null when a category failed or the whole run failed (error set).
+    CREATE TABLE IF NOT EXISTS pagespeed (
+      app            TEXT NOT NULL,
+      ts             INTEGER NOT NULL,
+      performance    INTEGER,
+      accessibility  INTEGER,
+      best_practices INTEGER,
+      seo            INTEGER,
+      error          TEXT
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS pagespeed_app_ts ON pagespeed (app, ts);
   `);
   return db;
 }

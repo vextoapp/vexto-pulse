@@ -1,0 +1,11 @@
+{
+  "id": "https://example.vexto.app/",
+  "lighthouseResult": {
+    "categories": {
+      "performance": { "id": "performance", "score": 0.71 },
+      "accessibility": { "id": "accessibility", "score": 0.954 },
+      "best-practices": { "id": "best-practices", "score": 1 },
+      "seo": { "id": "seo", "score": null }
+    }
+  }
+}
