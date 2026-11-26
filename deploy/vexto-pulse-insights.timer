@@ -1,0 +1,10 @@
+# Runs the insights job once a day at 04:30. Persistent catches up after a reboot.
+[Unit]
+Description=Run Vexto Pulse insights daily
+
+[Timer]
+OnCalendar=*-*-* 04:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

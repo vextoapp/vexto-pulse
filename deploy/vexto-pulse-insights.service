@@ -1,0 +1,19 @@
+# Vexto Pulse insights: Sentry error counts daily, PageSpeed scores weekly. Started by vexto-pulse-insights.timer.
+# Secrets (PAGESPEED_KEY, SENTRY_TOKEN) live in /etc/vexto-pulse/env, root-owned, mode 600.
+[Unit]
+Description=Vexto Pulse insights (one run)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/vexto-pulse
+EnvironmentFile=/etc/vexto-pulse/env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/insights.js
+TimeoutStartSec=60min
+MemoryMax=100M
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/pi/vexto-pulse/data
+PrivateTmp=true
