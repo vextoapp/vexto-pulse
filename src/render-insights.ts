@@ -15,6 +15,8 @@ export function renderInsights(i: Insights): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#e9eeeb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
 <title>Insights · Vexto Pulse</title>
 <style>${CSS}${INSIGHTS_CSS}</style>
 </head>
@@ -70,7 +72,9 @@ function score(v: number | null, prev: number | null): string {
   if (v == null) return '<span class="muted">–</span>';
   const band = v >= 90 ? 'good' : v >= 50 ? 'ok' : 'bad';
   const d = prev == null ? 0 : v - prev;
-  const delta = d ? ` <span class="delta">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : '';
+  const delta = d
+    ? ` <span class="delta"><span aria-hidden="true">${d > 0 ? '▲' : '▼'}</span><span class="vh">${d > 0 ? 'up' : 'down'} </span>${Math.abs(d)}</span>`
+    : '';
   return `<span class="${band}">${v}</span>${delta}`;
 }
 
@@ -93,7 +97,9 @@ tbody th a{text-decoration:none}
 tbody th a:hover{text-decoration:underline}
 tr.flag th{box-shadow:inset 3px 0 0 var(--warn)}
 abbr{text-decoration:none}
-.good{color:var(--up)}.ok{color:var(--warn)}.bad{color:var(--down);font-weight:600}
+.good{color:var(--up)}.ok{color:#8a5600}.bad{color:var(--down);font-weight:600}
+@media (prefers-color-scheme:dark){.ok{color:var(--warn)}}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .delta{font-size:.75rem;color:var(--muted)}
 td[colspan]{text-align:left}
 `;

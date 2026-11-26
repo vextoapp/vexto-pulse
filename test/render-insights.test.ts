@@ -23,7 +23,7 @@ test('renderInsights shows not set up and arrows', () => {
     rows: [row({ scores, previous: { ...scores, performance: 44 }, pagespeed_at: NOW })],
   });
   assert.match(html, /not set up/);
-  assert.match(html, /▼6/);
+  assert.match(html, /down <\/span>6/);
 });
 
 test('renderInsights says nothing needs attention when no reasons', () => {
@@ -34,4 +34,15 @@ test('renderInsights says nothing needs attention when no reasons', () => {
 test('renderInsights shows a failed PageSpeed run', () => {
   const html = renderInsights({ generated_at: NOW, rows: [row({ pagespeed_error: 'HTTP 429', pagespeed_at: NOW })] });
   assert.match(html, /Failed: HTTP 429/);
+});
+
+test('renderInsights gives arrows words for screen readers and sets the browser colour', () => {
+  const scores = { performance: 50, accessibility: 95, best_practices: 100, seo: 92 };
+  const html = renderInsights({
+    generated_at: NOW,
+    rows: [row({ scores, previous: { ...scores, performance: 44, seo: 95 }, pagespeed_at: NOW })],
+  });
+  assert.match(html, /<span aria-hidden="true">▲<\/span><span class="vh">up <\/span>6/);
+  assert.match(html, /<span aria-hidden="true">▼<\/span><span class="vh">down <\/span>3/);
+  assert.match(html, /<meta name="theme-color" content="#e9eeeb" media="\(prefers-color-scheme: light\)">/);
 });
