@@ -160,18 +160,6 @@ const f = (n: number) => n.toFixed(1);
 
 function renderApp(a: AppStatus, dates: string[]): string {
   const host = new URL(a.url).host;
-  const response =
-    a.state === 'up' && a.ms != null
-      ? `${(a.ms / 1000).toFixed(1)} seconds`
-      : a.state === 'unknown'
-        ? 'Not checked yet'
-        : `No answer (${esc(plainError(a.error))})`;
-  const cert =
-    a.tls_days == null
-      ? 'Unknown'
-      : a.tls_days < TLS_WARN_DAYS
-        ? `<span class="warn">Renews in ${a.tls_days} day${a.tls_days === 1 ? '' : 's'}</span>`
-        : 'Valid';
   return `
       <details class="row">
         <summary>
@@ -181,12 +169,24 @@ function renderApp(a: AppStatus, dates: string[]): string {
           <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
         </summary>
         <dl class="facts">
-          <div><dt>Response time</dt><dd>${response}</dd></div>
+          <div><dt>Response time</dt><dd>${responseText(a)}</dd></div>
           <div><dt>Up, last 30 days</dt><dd>${pct(a.uptime.d30)}</dd></div>
-          <div><dt>Security certificate</dt><dd>${cert}</dd></div>
+          <div><dt>Security certificate</dt><dd>${certText(a.tls_days)}</dd></div>
           <div><dt>Open</dt><dd><a href="${esc(a.url)}">${esc(host)}</a></dd></div>
         </dl>
       </details>`;
+}
+
+function responseText(a: AppStatus): string {
+  if (a.state === 'up' && a.ms != null) return `${(a.ms / 1000).toFixed(1)} seconds`;
+  if (a.state === 'unknown') return 'Not checked yet';
+  return `No answer (${esc(plainError(a.error))})`;
+}
+
+function certText(tlsDays: number | null): string {
+  if (tlsDays == null) return 'Unknown';
+  if (tlsDays < TLS_WARN_DAYS) return `<span class="warn">Renews in ${tlsDays} day${tlsDays === 1 ? '' : 's'}</span>`;
+  return 'Valid';
 }
 
 function dayBar(days: DayState[], dates: string[]): string {

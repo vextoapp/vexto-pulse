@@ -113,7 +113,9 @@ export function dayStates(tracked: Set<string>, outages: Outage[], now = Date.no
       (sum, o) => sum + Math.max(0, Math.min(end, o.ended_at ?? now) - Math.max(start, o.started_at)),
       0,
     );
-    return down === 0 ? 'ok' : down < MINOR_LIMIT_MS ? 'minor' : 'major';
+    if (down === 0) return 'ok';
+    if (down < MINOR_LIMIT_MS) return 'minor';
+    return 'major';
   });
 }
 
