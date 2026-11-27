@@ -46,3 +46,9 @@ test('renderInsights gives arrows words for screen readers and sets the browser 
   assert.match(html, /<span aria-hidden="true">▼<\/span><span class="vh">down <\/span>3/);
   assert.match(html, /<meta name="theme-color" content="#e9eeeb" media="\(prefers-color-scheme: light\)">/);
 });
+
+test('renderInsights shows the weekly summary above Needs attention', () => {
+  const html = renderInsights({ generated_at: NOW, rows: [row({})] }, '<section class="digest">WEEKLY</section>');
+  assert.ok(html.indexOf('WEEKLY') > 0 && html.indexOf('WEEKLY') < html.indexOf('Needs attention'));
+  assert.match(html, /\.digest\{/); // the section's styles are included
+});

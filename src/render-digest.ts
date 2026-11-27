@@ -26,6 +26,9 @@ function summary(d: Digest): string {
   return `${d.verdict}. ${parts.join(', ')}.`;
 }
 
+// "16–22" from "16–22 Nov", and "26–1" from "26 Oct – 1 Nov".
+const shortLabel = (label: string) => label.replace(/ [A-Z][a-z]{2}/g, '').replace(/ /g, '');
+
 const band = (u: number | null) => (u == null ? 'none' : u >= 99.5 ? 'ok' : u >= 99 ? 'minor' : 'major');
 
 // ---- Email ----
@@ -79,7 +82,7 @@ function emailTrend(points: TrendPoint[]): string {
   const cell = (t: TrendPoint) =>
     `<td align="center" style="padding:0 2px;font-size:11px;color:${C.sub}">
       <div style="height:28px;border-radius:3px;background:${C[band(t.uptime)]}"></div>
-      <div style="margin-top:4px">${esc(t.label.split(' ')[0])}</div></td>`;
+      <div style="margin-top:4px">${esc(shortLabel(t.label))}</div></td>`;
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${points.map(cell).join('')}</tr></table>
   <p style="margin:6px 0 0;font-size:12px;color:${C.sub}">Green: 99.5% or more. Amber: 99–99.5%. Red: under 99%.</p>`;
 }
@@ -106,7 +109,7 @@ export function digestSection(
        ${sections(d).map((s) => `<h3>${esc(s.title)}</h3><ul>${s.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
        <h3>Uptime, last 8 weeks</h3>
        <div class="trend">${d.trend
-         .map((t) => `<div title="${esc(t.label)}: ${pct1(t.uptime)}${t.errors != null ? `, ${t.errors} errors` : ''}"><i class="t-${band(t.uptime)}"></i><span>${esc(t.label.split(' ')[0])}</span></div>`)
+         .map((t) => `<div title="${esc(t.label)}: ${pct1(t.uptime)}${t.errors != null ? `, ${t.errors} errors` : ''}"><i class="t-${band(t.uptime)}"></i><span>${esc(shortLabel(t.label))}</span></div>`)
          .join('')}</div>`
     : '<p class="muted">The first summary arrives Monday at 7 am.</p>';
   return `<section class="digest" aria-labelledby="dg-h">

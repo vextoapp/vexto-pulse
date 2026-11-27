@@ -1,11 +1,12 @@
 // Private /insights page (behind Cloudflare Access): same look as the status page, plus a table.
 import type { InsightRow, Insights } from './insights-model.ts';
 import type { Scores } from './pagespeed.ts';
+import { DIGEST_CSS } from './render-digest.ts';
 import { esc, pct, time } from './render.ts';
 
 const SCORE_KEYS: (keyof Scores)[] = ['performance', 'accessibility', 'best_practices', 'seo'];
 
-export function renderInsights(i: Insights): string {
+export function renderInsights(i: Insights, digestHtml = ''): string {
   const attention = i.rows.filter((r) => r.reasons.length);
   const lastRun = Math.max(0, ...i.rows.map((r) => r.pagespeed_at ?? 0));
   return `<!doctype html>
@@ -18,7 +19,7 @@ export function renderInsights(i: Insights): string {
 <meta name="theme-color" content="#e9eeeb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
 <title>Insights · Vexto Pulse</title>
-<style>${BASE_CSS}${INSIGHTS_CSS}</style>
+<style>${BASE_CSS}${INSIGHTS_CSS}${DIGEST_CSS}</style>
 </head>
 <body>
 <main class="wide">
@@ -27,6 +28,8 @@ export function renderInsights(i: Insights): string {
     <h1>Insights</h1>
     <p class="sub">${lastRun ? `PageSpeed last ran ${time(lastRun)}.` : 'PageSpeed runs on the next daily job.'} Errors update daily.</p>
   </header>
+
+  ${digestHtml}
 
   <section aria-labelledby="att-h">
     <h2 id="att-h">Needs attention${attention.length ? ` (${attention.length})` : ''}</h2>

@@ -37,3 +37,9 @@ test('page section: empty state, selected week, send error', () => {
   assert.match(html, /<option value="2026-11-16" selected>16–22 Nov<\/option>/);
   assert.match(html, /Not sent: HTTP 500/);
 });
+
+test('trend labels are short day ranges, also across months', () => {
+  const d = digest({ trend: [{ key: '2026-10-26', label: '26 Oct – 1 Nov', uptime: null, errors: null }] });
+  assert.match(digestSection(d, [], null, null), /<span>26–1<\/span>/);
+  assert.match(digestEmail(d, URL_).html, />26–1</);
+});

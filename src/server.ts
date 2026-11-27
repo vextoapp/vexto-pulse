@@ -7,12 +7,22 @@ import { getStatus } from './status.ts';
 import { renderPage } from './render.ts';
 import { getInsights } from './insights-model.ts';
 import { renderInsights } from './render-insights.ts';
+import { getStored, listWeeks } from './digest-model.ts';
+import { digestSection } from './render-digest.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '127.0.0.1';
 
 const apps = loadApps();
 const db = openDb();
+// The stored digest for ?week=YYYY-MM-DD, or the newest one.
+function weeklySummary(asked: string | null): string {
+  const weeks = listWeeks(db);
+  const key = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && weeks.some((w) => w.key === asked) ? asked : (weeks[0]?.key ?? null);
+  const stored = key ? getStored(db, key) : null;
+  return digestSection(stored?.digest ?? null, weeks, key, stored && !stored.emailed_at ? stored.email_error : null);
+}
+
 const font = readFileSync(new URL('../public/Geist-Variable.woff2', import.meta.url)); // 69 KB, Geist (SIL OFL)
 
 const server = createServer((req, res) => {
@@ -39,7 +49,8 @@ const server = createServer((req, res) => {
     // path, not the parsed one, so /x/%2e%2e/insights can't reach it past Access's path rule.
     if (path === '/insights' && (req.url ?? '').split('?')[0] === '/insights') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
-      return res.end(req.method === 'HEAD' ? undefined : renderInsights(getInsights(db, apps)));
+      if (req.method === 'HEAD') return res.end();
+      return res.end(renderInsights(getInsights(db, apps), weeklySummary(new URL(req.url ?? '/', 'http://localhost').searchParams.get('week'))));
     }
     send(404, 'text/plain', 'Not found');
   } catch (err) {
