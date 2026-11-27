@@ -161,10 +161,48 @@ A missing key or token skips that source; the rest still runs.
 
 **Keep it private.** The page has no login of its own. Protect it with Cloudflare Access (free for up to 50 users): Zero Trust → Access → Applications → Add → Self-hosted, domain `status.vexto.app`, path `insights`, with a policy that allows only your email address (one-time PIN login). Check it from a private window: `/insights` should ask you to log in, and `/` should not.
 
+## Weekly digest (v3)
+
+Every Monday at 07:00 (the Pi's time zone, Australia/Sydney), `src/digest.ts` sums up the previous Monday–Sunday week and emails it with Resend. The same summary, stored as sent, appears at the top of `/insights` with a week picker.
+
+**What it contains:**
+- **A verdict:** a good, mixed or rough week, with uptime, outages and errors.
+- **Last week's focus, checked:** whether it's done (with before → after numbers) or still open.
+- **One focus,** plus up to 2 more items worth a look.
+- **What changed:** outages, big speed changes, PageSpeed moves, error swings, newly linked Sentry projects.
+- **Needs attention** and **an 8-week uptime trend.**
+
+**How the focus is picked,** most severe first:
+1. an outage of 30 minutes or more
+2. errors rising (5 or more, and at least double last week)
+3. uptime below 99%
+4. a certificate expiring within 14 days
+5. weak or falling PageSpeed (performance below 50, accessibility below 90, or down 10 points)
+6. average response at least 2× slower and at least 2 seconds
+
+A digest is frozen once it has been emailed. A failed send is retried with the same stored copy on the next run.
+
+Setup: add these to `/etc/vexto-pulse/env` (a Resend API key with sending access only, restricted to vexto.app):
+
+```
+RESEND_API_KEY=re_...
+DIGEST_TO=you@example.com
+```
+
+Then copy `deploy/vexto-pulse-digest.*` to `/etc/systemd/system/` and run `sudo systemctl enable --now vexto-pulse-digest.timer`.
+
+Run it by hand:
+
+```bash
+npm run digest                                         # last completed week
+PULSE_DIGEST_DRY=1 npm run digest                      # print the email text, send nothing
+PULSE_DIGEST_WEEK=2026-11-16 npm run digest            # a specific week (never re-sends an emailed one)
+```
+
 ## Roadmap
 
 - **v1, is it alive:** checks every app every 5 minutes, public status page.
-- **v2, is it good** (this): weekly PageSpeed scores and daily Sentry error counts on a private insights page. Usage numbers follow once the apps move off Lovable.
-- **v3, what should I do:** a Monday email summary with a suggested focus.
+- **v2, is it good:** weekly PageSpeed scores and daily Sentry error counts on a private insights page. Usage numbers follow once the apps move off Lovable.
+- **v3, what should I do** (this): a Monday email with one suggested focus, also kept week by week on `/insights`.
 - **v4, make it physical:** one LED per app on the Pi's GPIO pins (green, amber, red).
 - **v5 and beyond:** public changelog, experiment log, usage numbers, roadmap scoring.
