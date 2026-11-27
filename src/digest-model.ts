@@ -247,11 +247,14 @@ export function buildDigest(db: DatabaseSync, apps: App[], w: Week): Digest {
   const prev = appWeeks(db, apps, prevWeek);
   const issues = findIssues(cur, prev);
   const points = trend(db, apps, w);
+  // Only what went wrong this week counts toward the verdict. Standing issues (certificates, PageSpeed)
+  // still show in the focus and attention lists.
+  const weekly = issues.filter((i) => i.rule !== 4 && i.rule !== 5).length;
   return {
     week: w.key,
     label: w.label,
-    verdict: points.at(-1)!.uptime == null ? 'Not enough data yet' : verdict(issues.length),
-    issues_count: issues.length,
+    verdict: points.at(-1)!.uptime == null ? 'Not enough data yet' : verdict(weekly),
+    issues_count: weekly,
     uptime: points.at(-1)!.uptime,
     outages: cur.reduce((n, a) => n + a.outages.length, 0),
     errors: points.at(-1)!.errors,

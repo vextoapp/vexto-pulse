@@ -102,7 +102,7 @@ For each of the last 8 week windows:
 Shown as two small inline SVG bar or line charts on the page. The email gets a simple bar row built from table cells, since many email clients block SVG. Weeks with no data show as empty.
 
 ### The verdict line (my call)
-An "issue" is any item that meets a focus rule, 1–6.
+An "issue" here is an item that meets one of this week's rules: 1 (outage), 2 (errors rising), 3 (uptime below 99%) or 6 (much slower). Standing issues, 4 (certificate) and 5 (PageSpeed), still appear in the focus and "Needs attention" but don't count toward the verdict (Mo's call, after real data rated a 99.7%, no-outage week "rough" only because of accessibility scores).
 - **0 issues:** "A good week"
 - **1–2 issues:** "A mixed week"
 - **3 or more issues:** "A rough week"

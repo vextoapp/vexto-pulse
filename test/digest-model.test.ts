@@ -246,3 +246,16 @@ test('a week with no checks is "Not enough data yet"', () => {
 test('newly linked Sentry projects show as a change', () => {
   assert.deepEqual(m.changes([aw('A', { errors: 2 })] as never, [aw('A', { errors: null })] as never), ['A is now linked to Sentry.']);
 });
+
+test('standing issues (accessibility, certificates) stay in focus but do not make a week rough', () => {
+  const { db, check, ps } = setup();
+  for (const n of ['A', 'B', 'C']) {
+    check.run(n, W.start + H, 1, 500, 10); // certificate expires in 10 days: rule 4
+    ps.run(n, W.start + 24 * H, 80, 85, 100, 100, null); // accessibility 85: rule 5
+  }
+  const d = m.buildDigest(db, [app('A'), app('B'), app('C')], W);
+  assert.ok(d.attention.length >= 3);
+  assert.ok(d.focus);
+  assert.equal(d.verdict, 'A good week');
+  assert.equal(d.issues_count, 0);
+});
