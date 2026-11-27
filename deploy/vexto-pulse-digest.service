@@ -1,0 +1,20 @@
+# Vexto Pulse weekly digest email. Started by vexto-pulse-digest.timer every Monday at 07:00.
+# Secrets (RESEND_API_KEY, DIGEST_TO) live in /etc/vexto-pulse/env, root-owned, mode 600.
+[Unit]
+Description=Vexto Pulse weekly digest (one run)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/vexto-pulse
+# The leading - lets the job run (store the digest, skip the email) if the env file is missing.
+EnvironmentFile=-/etc/vexto-pulse/env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/digest.js
+TimeoutStartSec=5min
+MemoryMax=100M
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/pi/vexto-pulse/data
+PrivateTmp=true

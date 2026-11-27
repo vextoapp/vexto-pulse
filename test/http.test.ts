@@ -40,3 +40,22 @@ test('getJson times out', async () => {
     s.close();
   }
 });
+
+test('postJson sends a JSON body with headers and parses the reply', async () => {
+  const { postJson } = await import('../src/http.ts');
+  let got = '', auth = '', type = '';
+  const s = await serve((req, res) => {
+    auth = req.headers.authorization ?? '';
+    type = req.headers['content-type'] ?? '';
+    req.on('data', (c) => (got += c));
+    req.on('end', () => res.end('{"id":"abc"}'));
+  });
+  try {
+    assert.deepEqual(await postJson(s.url, { a: 1 }, { authorization: 'Bearer k' }), { id: 'abc' });
+    assert.equal(got, '{"a":1}');
+    assert.equal(auth, 'Bearer k');
+    assert.equal(type, 'application/json');
+  } finally {
+    s.close();
+  }
+});

@@ -12,7 +12,8 @@
     "start": "node --disable-warning=ExperimentalWarning dist/server.js",
     "check": "node --disable-warning=ExperimentalWarning dist/checker.js",
     "insights": "node --disable-warning=ExperimentalWarning dist/insights.js",
-    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\""
+    "test": "node --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\"",
+    "digest": "node --disable-warning=ExperimentalWarning dist/digest.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.7",

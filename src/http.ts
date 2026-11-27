@@ -3,12 +3,24 @@
 import http from 'node:http';
 import https from 'node:https';
 
-export function getJson(url: string, headers: Record<string, string> = {}, timeoutMs = 60_000): Promise<unknown> {
+export const getJson = (url: string, headers: Record<string, string> = {}, timeoutMs = 60_000) =>
+  requestJson('GET', url, undefined, headers, timeoutMs);
+
+export const postJson = (url: string, body: unknown, headers: Record<string, string> = {}, timeoutMs = 60_000) =>
+  requestJson('POST', url, JSON.stringify(body), { 'content-type': 'application/json', ...headers }, timeoutMs);
+
+function requestJson(
+  method: 'GET' | 'POST',
+  url: string,
+  body: string | undefined,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<unknown> {
   const client = url.startsWith('https:') ? https : http;
   return new Promise((resolve, reject) => {
-    const req = client.get(
+    const req = client.request(
       url,
-      { agent: false, timeout: timeoutMs, headers: { 'user-agent': 'VextoPulse/2.0 (+https://status.vexto.app)', ...headers } },
+      { method, agent: false, timeout: timeoutMs, headers: { 'user-agent': 'VextoPulse/2.0 (+https://status.vexto.app)', ...headers } },
       (res) => {
         const status = res.statusCode ?? 0;
         if (status < 200 || status >= 300) {
@@ -29,5 +41,6 @@ export function getJson(url: string, headers: Record<string, string> = {}, timeo
     );
     req.on('timeout', () => req.destroy(new Error(`Timed out after ${timeoutMs / 1000}s`)));
     req.on('error', reject);
+    req.end(body);
   });
 }

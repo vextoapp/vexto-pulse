@@ -1,0 +1,11 @@
+# Sends the weekly digest every Monday at 07:00 (the Pi's time zone, Australia/Sydney).
+# Persistent catches up after a reboot; a late run still covers the same Monday–Sunday week.
+[Unit]
+Description=Send the Vexto Pulse weekly digest
+
+[Timer]
+OnCalendar=Mon *-*-* 07:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
