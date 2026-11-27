@@ -195,8 +195,8 @@ Run it by hand:
 
 ```bash
 npm run digest                                         # last completed week
-PULSE_DIGEST_DRY=1 npm run digest                      # print the email text, send nothing
-PULSE_DIGEST_WEEK=2026-11-16 npm run digest            # a specific week (never re-sends an emailed one)
+PULSE_DIGEST_DRY=1 npm run digest                      # print the email text; stores and sends nothing
+PULSE_DIGEST_WEEK=2026-11-16 npm run digest            # a past week, by its Monday (never re-sends an emailed one)
 ```
 
 ## Roadmap

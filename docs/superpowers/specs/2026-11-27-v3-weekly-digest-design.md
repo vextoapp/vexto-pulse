@@ -125,7 +125,7 @@ Visually this section uses the same tokens and type as the redesigned public pag
 - **The email fails:** the digest is still stored, with `email_error`. The job exits 0 and logs the error. The page shows the error. Two retries on network errors or HTTP 5xx.
 - **A digest is frozen once emailed (my call).** A stored digest with `emailed_at` set is never recomputed or overwritten.
 - **The job runs twice for the same week:** if `emailed_at` is set, it does nothing. If the earlier send failed, it re-sends the stored copy without recomputing.
-- **Manual run:** `npm run digest` computes and stores the digest. `PULSE_DIGEST_DRY=1` prints the email's text to the terminal instead of sending. `PULSE_DIGEST_WEEK=YYYY-MM-DD` computes a given week. It recomputes only a week that hasn't been emailed; an emailed week is never touched.
+- **Manual run:** `npm run digest` computes and stores the digest. `PULSE_DIGEST_DRY=1` prints the email's text to the terminal and stores nothing. `PULSE_DIGEST_WEEK=YYYY-MM-DD` computes a given week; it must be the Monday of a week that has ended. It recomputes only a week that hasn't been emailed; an emailed week is never touched.
 
 ### Memory
 One-shot, and it reads at most about 90 days of checks per app with aggregate SQL. It should stay well under the insights job's 75 MB peak. Measure it with `/usr/bin/time -l` before shipping.

@@ -90,12 +90,14 @@ function issuesFor(a: AppWeek, p: AppWeek | undefined): Issue[] {
 
   if (a.outage_ms >= 30 * MIN_MS) add(1, 'outage', a.outage_ms, a.outage_ms, `${a.name} was down for ${longDuration(a.outage_ms / 1000)}.`);
 
-  const before = p?.errors ?? 0;
-  if (a.errors != null && a.errors >= 5 && (before === 0 || a.errors >= 2 * before)) {
+  // Last week must be known: a newly linked app isn't "up from 0".
+  const before = p?.errors;
+  if (a.errors != null && before != null && a.errors >= 5 && (before === 0 || a.errors >= 2 * before)) {
     add(2, 'errors', a.errors, a.errors - before, `${a.name} had ${a.errors} errors, up from ${before}.`);
   }
 
-  if (a.uptime != null && a.uptime < 99 && !out.length) add(3, 'uptime', a.uptime, 100 - a.uptime, `${a.name} was up ${a.uptime.toFixed(1)}% of the time.`);
+  // A long outage already explains low uptime, so rule 3 only adds what rule 1 doesn't.
+  if (a.uptime != null && a.uptime < 99 && a.outage_ms < 30 * MIN_MS) add(3, 'uptime', a.uptime, 100 - a.uptime, `${a.name} was up ${a.uptime.toFixed(1)}% of the time.`);
 
   if (a.tls_days != null && a.tls_days < 14) {
     add(4, 'certificate', a.tls_days, 14 - a.tls_days, `${a.name}'s certificate renews in ${a.tls_days} days.`);

@@ -64,3 +64,16 @@ test('a dry run returns the text and sends nothing', async () => {
   const out = await runDigest(db, apps, NOW, { PULSE_DIGEST_DRY: '1', PULSE_DIGEST_WEEK: '2026-11-16' });
   assert.match(out, /^Pulse weekly, 16–22 Nov/);
 });
+
+test('a dry run stores nothing', async () => {
+  const db = openDb(':memory:');
+  await runDigest(db, apps, NOW, { PULSE_DIGEST_DRY: '1', PULSE_DIGEST_WEEK: '2026-11-16' });
+  assert.equal(getStored(db, '2026-11-16'), null);
+});
+
+test('a pinned week must be a real Monday whose week has ended', async () => {
+  const db = openDb(':memory:');
+  for (const w of ['2026-11-18', '2026-11-30', '2026-02-30']) {
+    await assert.rejects(runDigest(db, apps, NOW, { PULSE_DIGEST_WEEK: w }), /PULSE_DIGEST_WEEK/, w);
+  }
+});

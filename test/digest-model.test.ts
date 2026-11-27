@@ -184,6 +184,7 @@ test('a first digest has no revisit; the next week revisits its focus', () => {
   const { db, sentry, check } = setup();
   check.run('A', W.start + H, 1, 500, 60);
   check.run('A', weekOf('2026-11-23').start + H, 1, 500, 60);
+  for (const d of ['08', '09', '10', '11', '12', '13', '14']) sentry.run('A', `2026-11-${d}`, 0); // 0 errors in week 9 Nov
   for (const d of ['15', '16', '17', '18', '19', '20', '21']) sentry.run('A', `2026-11-${d}`, ['15', '16', '17'].includes(d) ? 4 : 0); // 12 errors in week 16 Nov
   for (const d of ['22', '23', '24', '25', '26', '27', '28']) sentry.run('A', `2026-11-${d}`, 0);
   const first = m.buildDigest(db, [app('A')], W);
@@ -258,4 +259,14 @@ test('standing issues (accessibility, certificates) stay in focus but do not mak
   assert.ok(d.focus);
   assert.equal(d.verdict, 'A good week');
   assert.equal(d.issues_count, 0);
+});
+
+test('rule 2 needs a known last week: unknown is not "up from 0"', () => {
+  assert.deepEqual(rules([aw('A', { errors: 12 })], [aw('A', { errors: null })]), []);
+  assert.deepEqual(rules([aw('A', { errors: 12 })], null), []);
+});
+
+test('rule 3 still fires alongside rising errors; only a long outage replaces it', () => {
+  assert.deepEqual(rules([aw('A', { errors: 12, uptime: 96 })], [aw('A', { errors: 2 })]), [2, 3]);
+  assert.deepEqual(rules([aw('A', { outage_ms: 80 * MIN, uptime: 96 })]), [1]);
 });
