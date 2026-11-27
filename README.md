@@ -4,7 +4,9 @@ Uptime monitor and public status page for the [vexto.app](https://vexto.app) por
 
 Every 5 minutes it checks each app's HTTP status, response time and TLS certificate expiry, stores the result in SQLite and serves a status page at `status.vexto.app`.
 
-- **Status page** (`/`): overall state, each app's current state, uptime for 24h / 7d / 30d, a 24-hour response-time trace, and recent incidents. Light and dark mode, mobile-friendly, one HTML response with no external requests.
+- **Status page** (`/`): written for non-technical visitors. A headline that names any app with a problem, a heartbeat line with one beat per app (a flat red line means down), apps grouped by category with a one-line description and a 30-day bar, details on tap, and recent problems written as sentences. Light and dark mode, mobile-friendly, no requests to other sites (the Geist font is served from the Pi).
+- **30-day bars:** each UTC day is green (no outage), amber (under 30 minutes of outage), red (30 minutes or more) or grey (not tracked yet). Single blips never count.
+- **Pulse offline:** when 3 or more apps fail in the same run, Pulse also checks a neutral site (Cloudflare). If that fails too, the problem is Pulse's own internet, so the run isn't stored against any app and the page notes it.
 - **JSON** (`/api/status`): the same data, for future versions.
 - **Incidents:** 2 or more failed checks in a row open an incident. It closes at the next successful check, with its start, end and duration recorded. A single failed check shows as "Failed last check" but isn't an incident.
 - **Retention:** raw checks are kept for 90 days. Daily rollups (checks, successful checks, average ms per app per UTC day) are kept forever.
@@ -13,7 +15,7 @@ Every 5 minutes it checks each app's HTTP status, response time and TLS certific
 
 | Part | What it is |
 | --- | --- |
-| `apps.json` | The apps to monitor: `name`, `url`, `category` |
+| `apps.json` | The apps to monitor: `name`, `url`, `category` (the group on the page) and a one-line `description` |
 | `src/checker.ts` | One run: check all apps, store results, update incidents, refresh rollups, prune. Started every 5 minutes by a systemd timer, then exits |
 | `src/server.ts` | Small `node:http` server for the page and the JSON |
 | `src/incidents.ts` | The incident rule, as a pure function with tests |
@@ -43,7 +45,7 @@ Environment variables: `PORT` (default `3000`), `HOST` (default `127.0.0.1`), `P
 Add an entry to `apps.json`, commit and push, then run `./deploy.sh` on the Pi.
 
 ```json
-{ "name": "Stackmark", "url": "https://stackmark.dev", "category": "Developer tools" }
+{ "name": "Stackmark", "url": "https://stackmark.dev", "category": "Flagship products", "description": "A searchable directory of AI building blocks" }
 ```
 
 `name` must be unique. It's the key the checks are stored under, so renaming an app starts a fresh history.
