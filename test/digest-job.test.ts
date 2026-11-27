@@ -12,22 +12,29 @@ const NOW = Date.parse('2026-11-29T20:00:00Z'); // Monday 30 Nov 07:00 Sydney â†
 
 async function stub(status: number) {
   const bodies: string[] = [];
+  const headers: Record<string, string | string[] | undefined>[] = [];
   const server = createServer((req, res) => {
     let b = '';
     req.on('data', (c) => (b += c));
-    req.on('end', () => { bodies.push(b); res.statusCode = status; res.end('{"id":"x"}'); });
+    req.on('end', () => { bodies.push(b); headers.push(req.headers); res.statusCode = status; res.end('{"id":"x"}'); });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  return { base, bodies, close: () => { server.closeAllConnections(); server.close(); } };
+  return { base, bodies, headers, close: () => { server.closeAllConnections(); server.close(); } };
 }
 const env = (base: string) => ({ RESEND_API_KEY: 'k', DIGEST_TO: 'me@example.com', RESEND_BASE: base });
 
-test('a failed send is stored; the next run re-sends the same copy; then it stops', async () => {
+function withChecks() {
   const db = openDb(':memory:');
+  db.prepare('INSERT INTO checks (app, ts, ok, ms) VALUES (?, ?, 1, 500)').run('A', Date.parse('2026-11-24T00:00:00Z'));
+  return db;
+}
+
+test('a failed send is stored; the next run re-sends the same copy; then it stops', async () => {
+  const db = withChecks();
   const bad = await stub(500);
   try {
-    const log = await runDigest(db, apps, NOW, env(bad.base));
+    const log = await runDigest(db, apps, NOW, env(bad.base), 0);
     assert.match(log, /Digest 2026-11-23: stored, not sent: HTTP 500/);
     assert.equal(bad.bodies.length, 3);
     assert.equal(getStored(db, '2026-11-23')?.email_error, 'HTTP 500');
@@ -35,7 +42,8 @@ test('a failed send is stored; the next run re-sends the same copy; then it stop
 
   const good = await stub(200);
   try {
-    const log = await runDigest(db, apps, NOW, env(good.base));
+    const log = await runDigest(db, apps, NOW, env(good.base), 0);
+    assert.equal(good.headers[0]['idempotency-key'], 'pulse-digest-2026-11-23');
     assert.match(log, /Digest 2026-11-23: sent/);
     assert.equal(JSON.parse(good.bodies[0]).subject, 'Pulse weekly, 23â€“29 Nov: a good week, nothing urgent');
     assert.deepEqual(JSON.parse(good.bodies[0]).to, ['me@example.com']);

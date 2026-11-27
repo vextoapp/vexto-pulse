@@ -43,3 +43,16 @@ test('trend labels are short day ranges, also across months', () => {
   assert.match(digestSection(d, [], null, null), /<span>26–1<\/span>/);
   assert.match(digestEmail(d, URL_).html, />26–1</);
 });
+
+test('no-data weeks say so in the subject and summary', () => {
+  const e = digestEmail(digest({ verdict: 'Not enough data yet', uptime: null, errors: null }), URL_);
+  assert.equal(e.subject, 'Pulse weekly, 16–22 Nov: not enough data yet');
+  assert.match(e.text, /Not enough data yet\. Pulse has no checks for this week\./);
+});
+
+test('the 8-week trend shows errors too', () => {
+  const d = digest({ trend: [{ key: '2026-11-16', label: '16–22 Nov', uptime: 99.8, errors: 7 }] });
+  assert.match(digestEmail(d, URL_).html, /Errors in Sentry/);
+  assert.match(digestEmail(d, URL_).html, />7</);
+  assert.match(digestSection(d, [], null, null), /Errors in Sentry/);
+});

@@ -42,14 +42,15 @@ test('outages are clipped to the week', () => {
 
 test('errors: null when not linked to Sentry, 0 when linked but quiet', () => {
   const { db, sentry } = setup();
-  sentry.run('B', '2026-11-01', 4); // linked, but nothing this week
-  sentry.run('C', '2026-11-15', 2);
-  sentry.run('C', '2026-11-21', 3);
+  for (const d of ['15', '16', '17', '18', '19', '20', '21']) sentry.run('B', `2026-11-${d}`, 0); // linked, quiet week
+  for (const d of ['15', '16', '17', '18', '19', '20', '21']) sentry.run('C', `2026-11-${d}`, d === '15' ? 2 : d === '21' ? 3 : 0);
   sentry.run('C', '2026-11-22', 9); // the day after the week's UTC range
-  const [a, b, c] = m.appWeeks(db, [app('A'), app('B'), app('C')], W);
+  sentry.run('D', '2026-11-20', 4); // only part of the week stored: not enough to count
+  const [a, b, c, d] = m.appWeeks(db, [app('A'), app('B'), app('C'), app('D')], W);
   assert.equal(a.errors, null);
   assert.equal(b.errors, 0);
   assert.equal(c.errors, 5);
+  assert.equal(d.errors, null);
 });
 
 test('scores are the latest successful run before the week ends, with the one before it', () => {
@@ -166,7 +167,7 @@ test('8-week trend ends with this week; empty weeks have no uptime', () => {
   const { db, check, sentry } = setup();
   check.run('A', W.start + H, 1, 500, 60);
   check.run('A', W.start + 2 * H, 0, null, 60);
-  sentry.run('A', '2026-11-16', 4);
+  for (const d of ['15', '16', '17', '18', '19', '20', '21']) sentry.run('A', `2026-11-${d}`, d === '16' ? 4 : 0);
   const t = m.trend(db, [app('A'), app('B')], W);
   assert.equal(t.length, 8);
   assert.equal(t[7].key, '2026-11-16');
@@ -175,12 +176,16 @@ test('8-week trend ends with this week; empty weeks have no uptime', () => {
   assert.equal(t[7].errors, 4);
   assert.equal(t[0].key, '2026-09-28');
   assert.equal(t[0].uptime, null);
+  assert.equal(t[0].errors, null); // no Sentry days stored that far back
 });
 
 // ---- Task 5: build and store ----
 test('a first digest has no revisit; the next week revisits its focus', () => {
-  const { db, sentry } = setup();
-  for (const d of ['2026-11-15', '2026-11-16', '2026-11-17']) sentry.run('A', d, 4); // 12 errors in week 16 Nov
+  const { db, sentry, check } = setup();
+  check.run('A', W.start + H, 1, 500, 60);
+  check.run('A', weekOf('2026-11-23').start + H, 1, 500, 60);
+  for (const d of ['15', '16', '17', '18', '19', '20', '21']) sentry.run('A', `2026-11-${d}`, ['15', '16', '17'].includes(d) ? 4 : 0); // 12 errors in week 16 Nov
+  for (const d of ['22', '23', '24', '25', '26', '27', '28']) sentry.run('A', `2026-11-${d}`, 0);
   const first = m.buildDigest(db, [app('A')], W);
   assert.equal(first.revisit, null);
   assert.equal(first.focus?.text, 'A had 12 errors, up from 0.');
@@ -193,7 +198,8 @@ test('a first digest has no revisit; the next week revisits its focus', () => {
 });
 
 test('an emailed digest is frozen', () => {
-  const { db } = setup();
+  const { db, check } = setup();
+  check.run('A', W.start + H, 1, 500, 60);
   const d = m.buildDigest(db, [app('A')], W);
   m.storeDigest(db, d);
   m.markSent(db, d.week, null);
@@ -212,4 +218,31 @@ test('a failed send is recorded, and weeks list newest first', () => {
   assert.deepEqual(m.getStored(db, '2026-11-23')?.email_error, 'HTTP 500');
   assert.equal(m.getStored(db, '2026-11-23')?.emailed_at, null);
   assert.deepEqual(m.listWeeks(db), [{ key: '2026-11-23', label: '23–29 Nov' }, { key: '2026-11-16', label: '16–22 Nov' }]);
+});
+
+
+// ---- Final review fixes ----
+test('a long outage counts once, not also as low uptime', () => {
+  assert.deepEqual(rules([aw('A', { outage_ms: 120 * MIN, uptime: 98.8 })]), [1]);
+});
+
+test('revisit with no data this week is not "Done"', () => {
+  const last = m.findIssues([aw('Kata', { uptime: 95 })] as never, null)[0];
+  const r = m.revisit(last, [aw('Kata', { uptime: null })] as never, null);
+  assert.deepEqual([r?.done, r?.text], [false, 'Not checked: no data this week for Kata.']);
+});
+
+test('a fixed outage reads "none", not "1 minute"', () => {
+  const last = m.findIssues([aw('Kata', { outage_ms: 80 * MIN })] as never, null)[0];
+  assert.equal(m.revisit(last, [aw('Kata')] as never, null)?.text, 'Done: Kata outage 1 hour 20 minutes → none.');
+});
+
+test('a week with no checks is "Not enough data yet"', () => {
+  const { db } = setup();
+  const d = m.buildDigest(db, [app('A')], W);
+  assert.equal(d.verdict, 'Not enough data yet');
+});
+
+test('newly linked Sentry projects show as a change', () => {
+  assert.deepEqual(m.changes([aw('A', { errors: 2 })] as never, [aw('A', { errors: null })] as never), ['A is now linked to Sentry.']);
 });

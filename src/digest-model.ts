@@ -27,9 +27,9 @@ export function appWeeks(db: DatabaseSync, apps: App[], w: Week): AppWeek[] {
     `SELECT started_at, ended_at FROM incidents
      WHERE app = ? AND started_at < ? AND (ended_at IS NULL OR ended_at > ?) ORDER BY started_at`,
   );
-  const linkedQ = db.prepare('SELECT 1 FROM sentry_daily WHERE app = ? LIMIT 1');
+  // A week's error count needs all 7 Sentry days stored; fewer means not linked yet (or not backfilled).
   const errorsQ = db.prepare(
-    'SELECT coalesce(sum(errors), 0) AS n FROM sentry_daily WHERE app = ? AND day IN (SELECT value FROM json_each(?))',
+    'SELECT count(*) AS days, coalesce(sum(errors), 0) AS n FROM sentry_daily WHERE app = ? AND day IN (SELECT value FROM json_each(?))',
   );
   const scoresQ = db.prepare(
     `SELECT performance, accessibility, best_practices, seo FROM pagespeed
@@ -52,13 +52,15 @@ export function appWeeks(db: DatabaseSync, apps: App[], w: Week): AppWeek[] {
       outage_ms: outages.reduce((sum, o) => sum + o.ms, 0),
       outages,
       avg_ms: (c.avg_ms as number | null) ?? null,
-      errors: linkedQ.get(app.name) ? (errorsQ.get(app.name, days)!.n as number) : null,
+      errors: weekErrors(errorsQ.get(app.name, days)!),
       tls_days: (tlsQ.get(app.name, w.end)?.tls_days as number | null) ?? null,
       scores: latest ?? null,
       prev_scores: before ?? null,
     };
   });
 }
+
+const weekErrors = (r: Record<string, unknown>) => ((r.days as number) === 7 ? (r.n as number) : null);
 
 const toScores = (r: Record<string, unknown>): Scores => ({
   performance: r.performance as number | null,
@@ -93,7 +95,7 @@ function issuesFor(a: AppWeek, p: AppWeek | undefined): Issue[] {
     add(2, 'errors', a.errors, a.errors - before, `${a.name} had ${a.errors} errors, up from ${before}.`);
   }
 
-  if (a.uptime != null && a.uptime < 99) add(3, 'uptime', a.uptime, 100 - a.uptime, `${a.name} was up ${a.uptime.toFixed(1)}% of the time.`);
+  if (a.uptime != null && a.uptime < 99 && !out.length) add(3, 'uptime', a.uptime, 100 - a.uptime, `${a.name} was up ${a.uptime.toFixed(1)}% of the time.`);
 
   if (a.tls_days != null && a.tls_days < 14) {
     add(4, 'certificate', a.tls_days, 14 - a.tls_days, `${a.name}'s certificate renews in ${a.tls_days} days.`);
@@ -139,7 +141,7 @@ export function quickWin(cur: AppWeek[]): string | null {
 export type Revisit = { app: string; rule: number; done: boolean; text: string };
 
 const show = (metric: string, v: number) =>
-  metric === 'outage' ? longDuration(v / 1000) : metric === 'uptime' ? `${v.toFixed(1)}%` : metric === 'response' ? secs(v) : metric === 'certificate' ? `${v} days` : String(v);
+  metric === 'outage' ? (v ? longDuration(v / 1000) : 'none') : metric === 'uptime' ? `${v.toFixed(1)}%` : metric === 'response' ? secs(v) : metric === 'certificate' ? `${v} days` : String(v);
 
 function currentValue(metric: string, a: AppWeek): number | null {
   if (metric === 'outage') return a.outage_ms;
@@ -158,6 +160,7 @@ export function revisit(last: Issue | null, cur: AppWeek[], prev: AppWeek[] | nu
   if (!a) return null;
   const still = issuesFor(a, byName(prev).get(a.name)).find((i) => i.rule === last.rule);
   const now = currentValue(last.metric, a);
+  if (now == null) return { app: a.name, rule: last.rule, done: false, text: `Not checked: no data this week for ${a.name}.` };
   const nowText = now == null ? 'no data' : show(last.metric, now);
   return still
     ? { app: a.name, rule: last.rule, done: false, text: `Still open: ${a.name} ${last.metric} ${nowText}.` }
@@ -193,15 +196,17 @@ export const verdict = (issues: number) => (issues === 0 ? 'A good week' : issue
 // ---- 8-week trend for the whole portfolio ----
 export type TrendPoint = { key: string; label: string; uptime: number | null; errors: number | null };
 
+const sumKnown = (xs: (number | null)[]) => (xs.some((x) => x != null) ? xs.reduce<number>((s, x) => s + (x ?? 0), 0) : null);
+
 export function trend(db: DatabaseSync, apps: App[], w: Week, n = 8): TrendPoint[] {
   const names = JSON.stringify(apps.map((a) => a.name));
   const checksQ = db.prepare(
     'SELECT count(*) AS n, sum(ok) AS ok FROM checks WHERE ts >= ? AND ts < ? AND app IN (SELECT value FROM json_each(?))',
   );
-  const linked = db.prepare('SELECT 1 FROM sentry_daily WHERE app IN (SELECT value FROM json_each(?)) LIMIT 1').get(names);
+  // Per app, so an app with only part of a week stored doesn't count; null when no app has a full week.
   const errorsQ = db.prepare(
-    `SELECT coalesce(sum(errors), 0) AS n FROM sentry_daily
-     WHERE app IN (SELECT value FROM json_each(?)) AND day IN (SELECT value FROM json_each(?))`,
+    `SELECT count(*) AS days, coalesce(sum(errors), 0) AS n FROM sentry_daily
+     WHERE app = ? AND day IN (SELECT value FROM json_each(?))`,
   );
   const weeks = [w];
   while (weeks.length < n) weeks.unshift(previousWeek(weeks[0]));
@@ -211,7 +216,7 @@ export function trend(db: DatabaseSync, apps: App[], w: Week, n = 8): TrendPoint
       key: x.key,
       label: x.label,
       uptime: (c.n as number) ? ((c.ok as number) / (c.n as number)) * 100 : null,
-      errors: linked ? (errorsQ.get(names, JSON.stringify(sentryDays(x)))!.n as number) : null,
+      errors: sumKnown(apps.map((a) => weekErrors(errorsQ.get(a.name, JSON.stringify(sentryDays(x)))!))),
     };
   });
 }
@@ -245,7 +250,7 @@ export function buildDigest(db: DatabaseSync, apps: App[], w: Week): Digest {
   return {
     week: w.key,
     label: w.label,
-    verdict: verdict(issues.length),
+    verdict: points.at(-1)!.uptime == null ? 'Not enough data yet' : verdict(issues.length),
     issues_count: issues.length,
     uptime: points.at(-1)!.uptime,
     outages: cur.reduce((n, a) => n + a.outages.length, 0),

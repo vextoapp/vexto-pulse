@@ -20,7 +20,10 @@ function sections(d: Digest): Section[] {
 const things = (n: number) => (n === 0 ? 'nothing urgent' : `${n} thing${n === 1 ? '' : 's'} to fix`);
 const pct1 = (v: number | null) => (v == null ? 'no data' : `${v >= 99.995 ? '100' : v.toFixed(v >= 99.9 ? 2 : 1)}%`);
 
+const NO_DATA = 'Not enough data yet';
+
 function summary(d: Digest): string {
+  if (d.verdict === NO_DATA) return `${NO_DATA}. Pulse has no checks for this week.`;
   const parts = [`Up ${pct1(d.uptime)} of the time`, d.outages ? `${d.outages} outage${d.outages === 1 ? '' : 's'}` : 'no outages'];
   if (d.errors != null) parts.push(`${d.errors} error${d.errors === 1 ? '' : 's'} in Sentry`);
   return `${d.verdict}. ${parts.join(', ')}.`;
@@ -37,7 +40,10 @@ const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial
 
 export function digestEmail(d: Digest, insightsUrl: string): { subject: string; html: string; text: string } {
   const link = `${insightsUrl}?week=${d.week}`;
-  const subject = `Pulse weekly, ${d.label}: ${d.verdict.toLowerCase()}, ${things(d.issues_count)}`;
+  const subject =
+    d.verdict === NO_DATA
+      ? `Pulse weekly, ${d.label}: not enough data yet`
+      : `Pulse weekly, ${d.label}: ${d.verdict.toLowerCase()}, ${things(d.issues_count)}`;
 
   const text = [
     `Pulse weekly, ${d.label}`,
@@ -46,6 +52,7 @@ export function digestEmail(d: Digest, insightsUrl: string): { subject: string; 
     ...sections(d).flatMap((s) => ['', s.title, ...s.items]),
     '',
     `8-week uptime: ${d.trend.map((t) => `${t.label} ${pct1(t.uptime)}`).join(', ')}`,
+    `8-week errors in Sentry: ${d.trend.map((t) => `${t.label} ${t.errors ?? 'no data'}`).join(', ')}`,
     '',
     `See every week: ${link}`,
   ].join('\n');
@@ -67,7 +74,7 @@ ${sections(d)
   )
   .join('')}
 <tr><td style="padding:20px 28px 0">
-  <h2 style="margin:0 0 10px;font-size:14px;font-weight:600">Uptime, last 8 weeks</h2>
+  <h2 style="margin:0 0 10px;font-size:14px;font-weight:600">Last 8 weeks</h2>
   ${emailTrend(d.trend)}
 </td></tr>
 <tr><td style="padding:24px 28px 28px">
@@ -83,8 +90,10 @@ function emailTrend(points: TrendPoint[]): string {
     `<td align="center" style="padding:0 2px;font-size:11px;color:${C.sub}">
       <div style="height:28px;border-radius:3px;background:${C[band(t.uptime)]}"></div>
       <div style="margin-top:4px">${esc(shortLabel(t.label))}</div></td>`;
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${points.map(cell).join('')}</tr></table>
-  <p style="margin:6px 0 0;font-size:12px;color:${C.sub}">Green: 99.5% or more. Amber: 99–99.5%. Red: under 99%.</p>`;
+  const errorCell = (t: TrendPoint) => `<td align="center" style="padding:6px 2px 0;font-size:12px;color:${C.ink}">${t.errors ?? '–'}</td>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${points.map(cell).join('')}</tr>
+  <tr>${points.map(errorCell).join('')}</tr></table>
+  <p style="margin:6px 0 0;font-size:12px;color:${C.sub}">Bars: uptime (green 99.5% or more, amber 99–99.5%, red under 99%). Numbers: Errors in Sentry.</p>`;
 }
 
 // ---- Page section on /insights ----
@@ -107,10 +116,12 @@ export function digestSection(
     ? `<p class="verdict">${esc(summary(d))}</p>
        ${sendError ? `<p class="unsent">Not sent: ${esc(sendError)}</p>` : ''}
        ${sections(d).map((s) => `<h3>${esc(s.title)}</h3><ul>${s.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
-       <h3>Uptime, last 8 weeks</h3>
+       <h3>Last 8 weeks</h3>
        <div class="trend">${d.trend
          .map((t) => `<div title="${esc(t.label)}: ${pct1(t.uptime)}${t.errors != null ? `, ${t.errors} errors` : ''}"><i class="t-${band(t.uptime)}"></i><span>${esc(shortLabel(t.label))}</span></div>`)
-         .join('')}</div>`
+         .join('')}</div>
+       <div class="trend errs">${d.trend.map((t) => `<div><span>${t.errors ?? '–'}</span></div>`).join('')}</div>
+       <p class="muted small">Bars: uptime. Numbers: Errors in Sentry.</p>`
     : '<p class="muted">The first summary arrives Monday at 7 am.</p>';
   return `<section class="digest" aria-labelledby="dg-h">
     <div class="dg-head"><h2 id="dg-h">Weekly summaries</h2>${picker}</div>
@@ -132,5 +143,7 @@ export const DIGEST_CSS = `
 .trend{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-width:28rem}
 .trend div{display:flex;flex-direction:column;align-items:center;gap:.2rem;font-size:.75rem;color:var(--muted)}
 .trend i{display:block;width:100%;height:1.75rem;border-radius:3px}
+.trend.errs span{color:var(--ink);font-size:.8rem}
+.digest .small{font-size:.8rem;margin-top:.35rem}
 .t-ok{background:var(--up)}.t-minor{background:var(--warn)}.t-major{background:var(--down)}.t-none{background:var(--rule)}
 `;

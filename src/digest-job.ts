@@ -11,7 +11,7 @@ const INSIGHTS_URL = 'https://status.vexto.app/insights';
 const ATTEMPTS = 3;
 type Env = Record<string, string | undefined>;
 
-export async function runDigest(db: DatabaseSync, apps: App[], now: number, env: Env): Promise<string> {
+export async function runDigest(db: DatabaseSync, apps: App[], now: number, env: Env, retryMs = 5000): Promise<string> {
   const pinned = env.PULSE_DIGEST_WEEK;
   if (pinned && !/^\d{4}-\d{2}-\d{2}$/.test(pinned)) throw new Error('PULSE_DIGEST_WEEK must look like 2026-11-16');
   const week = pinned ? weekOf(pinned) : lastCompletedWeek(now);
@@ -36,7 +36,14 @@ export async function runDigest(db: DatabaseSync, apps: App[], now: number, env:
   let error = '';
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     try {
-      await postJson(`${env.RESEND_BASE ?? 'https://api.resend.com'}/emails`, body, { authorization: `Bearer ${env.RESEND_API_KEY}` }, 30_000);
+      if (attempt) await new Promise((r) => setTimeout(r, retryMs * attempt));
+      // The same key for every attempt at this week: Resend sends at most once per key within 24 hours.
+      await postJson(
+        `${env.RESEND_BASE ?? 'https://api.resend.com'}/emails`,
+        body,
+        { authorization: `Bearer ${env.RESEND_API_KEY}`, 'idempotency-key': `pulse-digest-${week.key}` },
+        30_000,
+      );
       markSent(db, week.key, null);
       return `${tag}: sent`;
     } catch (err) {
