@@ -45,6 +45,15 @@ export function openDb(path = process.env.PULSE_DB ?? 'data/pulse.db'): Database
       failed INTEGER NOT NULL
     ) STRICT;
 
+    -- v3 weekly digests, stored as sent. A row with emailed_at set is never rewritten.
+    CREATE TABLE IF NOT EXISTS digests (
+      week        TEXT PRIMARY KEY,
+      created_at  INTEGER NOT NULL,
+      data        TEXT NOT NULL,
+      emailed_at  INTEGER,
+      email_error TEXT
+    ) STRICT;
+
     -- v2 insights. Scores are 0–100, null when a category failed or the whole run failed (error set).
     CREATE TABLE IF NOT EXISTS pagespeed (
       app            TEXT NOT NULL,

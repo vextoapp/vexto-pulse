@@ -176,3 +176,40 @@ test('8-week trend ends with this week; empty weeks have no uptime', () => {
   assert.equal(t[0].key, '2026-09-28');
   assert.equal(t[0].uptime, null);
 });
+
+// ---- Task 5: build and store ----
+test('a first digest has no revisit; the next week revisits its focus', () => {
+  const { db, sentry } = setup();
+  for (const d of ['2026-11-15', '2026-11-16', '2026-11-17']) sentry.run('A', d, 4); // 12 errors in week 16 Nov
+  const first = m.buildDigest(db, [app('A')], W);
+  assert.equal(first.revisit, null);
+  assert.equal(first.focus?.text, 'A had 12 errors, up from 0.');
+  assert.equal(first.verdict, 'A mixed week');
+  assert.equal(first.issues_count, 1);
+  m.storeDigest(db, first);
+  const next = m.buildDigest(db, [app('A')], weekOf('2026-11-23'));
+  assert.equal(next.revisit?.text, 'Done: A errors 12 → 0.');
+  assert.equal(next.quick_win, null);
+});
+
+test('an emailed digest is frozen', () => {
+  const { db } = setup();
+  const d = m.buildDigest(db, [app('A')], W);
+  m.storeDigest(db, d);
+  m.markSent(db, d.week, null);
+  m.storeDigest(db, { ...d, verdict: 'changed' });
+  const stored = m.getStored(db, d.week);
+  assert.equal(stored?.digest.verdict, 'A good week');
+  assert.ok(stored?.emailed_at);
+  assert.equal(stored?.email_error, null);
+});
+
+test('a failed send is recorded, and weeks list newest first', () => {
+  const { db } = setup();
+  m.storeDigest(db, m.buildDigest(db, [app('A')], W));
+  m.storeDigest(db, m.buildDigest(db, [app('A')], weekOf('2026-11-23')));
+  m.markSent(db, '2026-11-23', 'HTTP 500');
+  assert.deepEqual(m.getStored(db, '2026-11-23')?.email_error, 'HTTP 500');
+  assert.equal(m.getStored(db, '2026-11-23')?.emailed_at, null);
+  assert.deepEqual(m.listWeeks(db), [{ key: '2026-11-23', label: '23–29 Nov' }, { key: '2026-11-16', label: '16–22 Nov' }]);
+});

@@ -215,3 +215,73 @@ export function trend(db: DatabaseSync, apps: App[], w: Week, n = 8): TrendPoint
     };
   });
 }
+
+// ---- The digest: worked out once, stored, then emailed and shown on /insights from the stored copy ----
+export type Digest = {
+  week: string;
+  label: string;
+  verdict: string;
+  issues_count: number;
+  uptime: number | null;
+  outages: number;
+  errors: number | null;
+  revisit: Revisit | null;
+  focus: Issue | null;
+  also: Issue[];
+  quick_win: string | null;
+  changes: string[];
+  attention: Issue[];
+  trend: TrendPoint[];
+};
+
+export type Stored = { digest: Digest; emailed_at: number | null; email_error: string | null };
+
+export function buildDigest(db: DatabaseSync, apps: App[], w: Week): Digest {
+  const prevWeek = previousWeek(w);
+  const cur = appWeeks(db, apps, w);
+  const prev = appWeeks(db, apps, prevWeek);
+  const issues = findIssues(cur, prev);
+  const points = trend(db, apps, w);
+  return {
+    week: w.key,
+    label: w.label,
+    verdict: verdict(issues.length),
+    issues_count: issues.length,
+    uptime: points.at(-1)!.uptime,
+    outages: cur.reduce((n, a) => n + a.outages.length, 0),
+    errors: points.at(-1)!.errors,
+    revisit: revisit(getStored(db, prevWeek.key)?.digest.focus ?? null, cur, prev),
+    focus: issues[0] ?? null,
+    also: issues.slice(1, 3),
+    quick_win: issues.length ? null : quickWin(cur),
+    changes: changes(cur, prev),
+    attention: issues,
+    trend: points,
+  };
+}
+
+export function getStored(db: DatabaseSync, week: string): Stored | null {
+  const r = db.prepare('SELECT data, emailed_at, email_error FROM digests WHERE week = ?').get(week);
+  return r
+    ? { digest: JSON.parse(r.data as string), emailed_at: (r.emailed_at as number | null) ?? null, email_error: (r.email_error as string | null) ?? null }
+    : null;
+}
+
+// Saves a digest, but never over one that has already been emailed.
+export function storeDigest(db: DatabaseSync, d: Digest, now = Date.now()): void {
+  db.prepare(
+    `INSERT INTO digests (week, created_at, data) VALUES (?, ?, ?)
+     ON CONFLICT (week) DO UPDATE SET created_at = excluded.created_at, data = excluded.data WHERE digests.emailed_at IS NULL`,
+  ).run(d.week, now, JSON.stringify(d));
+}
+
+export function markSent(db: DatabaseSync, week: string, error: string | null, now = Date.now()): void {
+  db.prepare('UPDATE digests SET emailed_at = ?, email_error = ? WHERE week = ?').run(error ? null : now, error, week);
+}
+
+export function listWeeks(db: DatabaseSync): { key: string; label: string }[] {
+  return db
+    .prepare("SELECT week, data ->> '$.label' AS label FROM digests ORDER BY week DESC")
+    .all()
+    .map((r) => ({ key: r.week as string, label: r.label as string }));
+}
