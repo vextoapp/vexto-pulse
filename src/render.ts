@@ -260,7 +260,7 @@ function ago(ms: number): string {
   return `${h} hour${h === 1 ? '' : 's'} ago`;
 }
 
-function longDuration(s: number): string {
+export function longDuration(s: number): string {
   const unit = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const m = Math.max(1, Math.round(s / 60));
   if (m < 60) return unit(m, 'minute');
