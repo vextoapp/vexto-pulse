@@ -6,7 +6,7 @@ import { getInsights } from '../src/insights-model.ts';
 const DAY = 86_400_000;
 const NOW = Date.parse('2026-11-26T12:00:00Z');
 const day = (offset: number) => new Date(NOW - offset * DAY).toISOString().slice(0, 10);
-const app = (name: string) => ({ name, url: `https://${name.toLowerCase()}.vexto.app`, category: 'Test' });
+const app = (name: string) => ({ name, url: `https://${name.toLowerCase()}.vexto.app`, category: 'Test', description: 'Test app' });
 
 function setup() {
   const db = openDb(':memory:');
