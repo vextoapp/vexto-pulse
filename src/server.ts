@@ -1,4 +1,5 @@
-// Long-running web server: GET / (status page) and GET /api/status (JSON).
+// Long-running web server: GET / (status page), GET /api/status (JSON), /insights and the font.
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { loadApps } from './config.ts';
 import { openDb } from './db.ts';
@@ -12,6 +13,7 @@ const HOST = process.env.HOST ?? '127.0.0.1';
 
 const apps = loadApps();
 const db = openDb();
+const font = readFileSync(new URL('../public/Geist-Variable.woff2', import.meta.url)); // 69 KB, Geist (SIL OFL)
 
 const server = createServer((req, res) => {
   const send = (code: number, type: string, body: string) => {
@@ -28,6 +30,10 @@ const server = createServer((req, res) => {
   }
   try {
     if (path === '/') return send(200, 'text/html; charset=utf-8', renderPage(getStatus(db, apps)));
+    if (path === '/geist.woff2') {
+      res.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' });
+      return res.end(req.method === 'HEAD' ? undefined : font);
+    }
     if (path === '/api/status') return send(200, 'application/json', JSON.stringify(getStatus(db, apps)));
     // Private: Cloudflare Access guards this path at the edge. Never cache or index it. Match the raw
     // path, not the parsed one, so /x/%2e%2e/insights can't reach it past Access's path rule.
