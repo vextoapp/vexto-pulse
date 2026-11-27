@@ -43,3 +43,15 @@ test('consecutive offline runs merge into one spell', async () => {
     { started_at: t, ended_at: t + 2 * RUN },
   ]);
 });
+
+test('recent problems only include incidents from the last 30 days', async () => {
+  const { openDb } = await import('../src/db.ts');
+  const { getStatus } = await import('../src/status.ts');
+  const db = openDb(':memory:');
+  const ins = db.prepare('INSERT INTO incidents (app, started_at, ended_at, duration_s) VALUES (?, ?, ?, ?)');
+  const DAY = 86_400_000;
+  ins.run('A', NOW - 90 * DAY, NOW - 90 * DAY + 600_000, 600);
+  ins.run('A', NOW - 2 * DAY, NOW - 2 * DAY + 600_000, 600);
+  const s = getStatus(db, [{ name: 'A', url: 'https://a.vexto.app', category: 'Family', description: 'A' }], NOW);
+  assert.deepEqual(s.incidents.map((i) => i.started_at), [NOW - 2 * DAY]);
+});

@@ -128,6 +128,7 @@ const plainHeadline = (s: Status) => Object.values(headlineParts(s)).filter(Bool
 function heartbeat(groups: [string, AppStatus[]][]): string {
   const GAP = 0.6, W = 1000, BASE = 58;
   const count = groups.reduce((n, [, apps]) => n + apps.length, 0);
+  if (!count) return '';
   const working = groups.reduce((n, [, apps]) => n + apps.filter((a) => a.state === 'up').length, 0);
   const u = W / (count + GAP * (groups.length - 1));
   let x = 0;

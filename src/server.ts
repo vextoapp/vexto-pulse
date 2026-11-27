@@ -31,7 +31,7 @@ const server = createServer((req, res) => {
   try {
     if (path === '/') return send(200, 'text/html; charset=utf-8', renderPage(getStatus(db, apps)));
     if (path === '/geist.woff2') {
-      res.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' });
+      res.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=604800' });
       return res.end(req.method === 'HEAD' ? undefined : font);
     }
     if (path === '/api/status') return send(200, 'application/json', JSON.stringify(getStatus(db, apps)));

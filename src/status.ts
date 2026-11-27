@@ -82,9 +82,10 @@ export function getStatus(db: DatabaseSync, apps: App[], now = Date.now()): Stat
   const incidents = db
     .prepare(
       `SELECT app, started_at, ended_at, duration_s FROM incidents
-       WHERE app IN (SELECT value FROM json_each(?)) ORDER BY started_at DESC LIMIT 10`,
+       WHERE app IN (SELECT value FROM json_each(?)) AND (ended_at IS NULL OR ended_at >= ?)
+       ORDER BY started_at DESC LIMIT 10`,
     )
-    .all(JSON.stringify(apps.map((a) => a.name))) as Incident[];
+    .all(JSON.stringify(apps.map((a) => a.name)), now - DAYS * DAY_MS) as Incident[];
 
   const offlineRuns = db.prepare('SELECT ts FROM pulse_offline WHERE ts >= ? ORDER BY ts').all(since);
 
