@@ -34,3 +34,12 @@ test('an ongoing outage counts up to now', () => {
   const s = dayStates(tracked(day('2026-11-27')), [{ started_at: NOW - 45 * MIN, ended_at: null }], NOW);
   assert.equal(s[29], 'major');
 });
+
+test('consecutive offline runs merge into one spell', async () => {
+  const { offlineSpells } = await import('../src/status.ts');
+  const t = Date.parse('2026-11-26T19:55:00Z'), RUN = 5 * MIN;
+  assert.deepEqual(offlineSpells([t, t + RUN, t + 2 * RUN, t + 30 * RUN]), [
+    { started_at: t + 30 * RUN, ended_at: t + 30 * RUN },
+    { started_at: t, ended_at: t + 2 * RUN },
+  ]);
+});

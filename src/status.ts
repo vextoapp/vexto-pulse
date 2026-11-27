@@ -32,7 +32,10 @@ export type Status = {
   overall: 'operational' | 'partial_outage' | 'major_outage' | 'unknown';
   apps: AppStatus[];
   incidents: Incident[];
+  pulse_offline: OfflineSpell[]; // newest first, last 30 days: Pulse's own connection was down
 };
+
+export type OfflineSpell = { started_at: number; ended_at: number };
 
 export function getStatus(db: DatabaseSync, apps: App[], now = Date.now()): Status {
   const latestQ = db.prepare(
@@ -83,7 +86,15 @@ export function getStatus(db: DatabaseSync, apps: App[], now = Date.now()): Stat
     )
     .all(JSON.stringify(apps.map((a) => a.name))) as Incident[];
 
-  return { generated_at: now, overall: overallOf(appStatuses), apps: appStatuses, incidents };
+  const offlineRuns = db.prepare('SELECT ts FROM pulse_offline WHERE ts >= ? ORDER BY ts').all(since);
+
+  return {
+    generated_at: now,
+    overall: overallOf(appStatuses),
+    apps: appStatuses,
+    incidents,
+    pulse_offline: offlineSpells(offlineRuns.map((r) => r.ts as number)),
+  };
 }
 
 const DAYS = 30;
@@ -104,6 +115,17 @@ export function dayStates(tracked: Set<string>, outages: Outage[], now = Date.no
     );
     return down === 0 ? 'ok' : down < MINOR_LIMIT_MS ? 'minor' : 'major';
   });
+}
+
+// Offline runs (ascending) up to ~one check apart belong to the same spell. Newest spell first.
+export function offlineSpells(runs: number[]): OfflineSpell[] {
+  const spells: OfflineSpell[] = [];
+  for (const ts of runs) {
+    const last = spells.at(-1);
+    if (last && ts - last.ended_at <= 6 * 60_000) last.ended_at = ts;
+    else spells.push({ started_at: ts, ended_at: ts });
+  }
+  return spells.reverse();
 }
 
 function overallOf(apps: AppStatus[]): Status['overall'] {

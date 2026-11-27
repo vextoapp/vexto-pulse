@@ -4,6 +4,7 @@ import { loadApps } from './config.ts';
 import { openDb } from './db.ts';
 import { checkApp } from './check.ts';
 import { decideIncident } from './incidents.ts';
+import { REFERENCE_URL, needsReferenceCheck, pulseOffline } from './pulse-offline.ts';
 
 const DAY_MS = 86_400_000;
 const RETENTION_DAYS = 90;
@@ -12,6 +13,15 @@ const apps = loadApps();
 const db = openDb();
 const ts = Date.now();
 const results = await Promise.all(apps.map((app) => checkApp(app.url)));
+const failed = results.filter((r) => !r.ok).length;
+
+if (needsReferenceCheck(failed) && pulseOffline(failed, (await checkApp(REFERENCE_URL)).ok)) {
+  // Don't store this run: it says nothing about the apps, so it mustn't open incidents or lower uptime.
+  db.prepare('INSERT INTO pulse_offline (ts, failed) VALUES (?, ?)').run(ts, failed);
+  console.log(`Pulse offline: ${failed} of ${apps.length} apps failed and the reference failed too`);
+  db.close();
+  process.exit(0);
+}
 
 const insertCheck = db.prepare(
   'INSERT INTO checks (app, ts, ok, status, ms, tls_days, error) VALUES (?, ?, ?, ?, ?, ?, ?)',

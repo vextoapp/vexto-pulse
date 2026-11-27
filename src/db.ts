@@ -39,6 +39,12 @@ export function openDb(path = process.env.PULSE_DB ?? 'data/pulse.db'): Database
       PRIMARY KEY (app, day)
     ) STRICT;
 
+    -- Runs where many apps failed and the reference site failed too: Pulse itself was offline.
+    CREATE TABLE IF NOT EXISTS pulse_offline (
+      ts     INTEGER PRIMARY KEY,
+      failed INTEGER NOT NULL
+    ) STRICT;
+
     -- v2 insights. Scores are 0–100, null when a category failed or the whole run failed (error set).
     CREATE TABLE IF NOT EXISTS pagespeed (
       app            TEXT NOT NULL,
