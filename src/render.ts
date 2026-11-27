@@ -24,6 +24,7 @@ export function renderPage(s: Status): string {
   const uptimes = s.apps.map((a) => a.uptime.d30).filter((v): v is number => v != null);
   const avg = uptimes.length ? uptimes.reduce((x, y) => x + y, 0) / uptimes.length : null;
   const problems = s.apps.filter((a) => a.state === 'down' || a.state === 'degraded').length;
+  const dates = dayNames(s.generated_at);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -64,7 +65,7 @@ export function renderPage(s: Status): string {
   ${groups.map(([g, apps], i) => `
   <section class="group" data-g="${i}" aria-labelledby="g-${i}">
     <h2 id="g-${i}">${esc(g)}<span>${apps.length}</span></h2>
-    <div class="card">${apps.map(renderApp).join('')}</div>
+    <div class="card">${apps.map((a) => renderApp(a, dates)).join('')}</div>
   </section>`).join('')}
 
   <section class="plain" aria-labelledby="hist-h">
@@ -157,7 +158,7 @@ function heartbeat(groups: [string, AppStatus[]][]): string {
 const BEAT: Record<AppState, string> = { up: 'ok', degraded: 'warn', down: 'down', unknown: 'none' };
 const f = (n: number) => n.toFixed(1);
 
-function renderApp(a: AppStatus): string {
+function renderApp(a: AppStatus, dates: string[]): string {
   const host = new URL(a.url).host;
   const response =
     a.state === 'up' && a.ms != null
@@ -176,7 +177,7 @@ function renderApp(a: AppStatus): string {
         <summary>
           <div class="who"><strong>${esc(a.name)}</strong><p>${esc(a.description)}</p></div>
           <div class="state s-${a.state}"><i></i>${STATE_LABEL[a.state]}</div>
-          ${dayBar(a.days)}
+          ${dayBar(a.days, dates)}
           <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
         </summary>
         <dl class="facts">
@@ -188,15 +189,24 @@ function renderApp(a: AppStatus): string {
       </details>`;
 }
 
-function dayBar(days: DayState[]): string {
+function dayBar(days: DayState[], dates: string[]): string {
   const count = (d: DayState) => days.filter((x) => x === d).length;
-  const today = Math.floor(Date.now() / 86_400_000) * 86_400_000;
   const label = `Last 30 days: ${count('ok')} with no problems, ${count('minor')} with a short problem, ${count('major')} down for a while, ${count('none')} not tracked yet`;
   return `<div class="bar" role="img" aria-label="${label}">${days
-    .map((d, i) => `<i class="d-${d}" title="${dayName(today - (days.length - 1 - i) * 86_400_000)}: ${DAY_LABEL[d]}"></i>`)
+    .map((d, i) => `<i class="d-${d}" title="${dates[i]}: ${DAY_LABEL[d]}"></i>`)
     .join('')}</div>`;
 }
-const dayName = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// "27 Nov" for each of the last n UTC days, oldest first. Plain string building: Intl formatting
+// on every bar slot loaded enough locale data to add ~50 MB to the server.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function dayNames(now: number, n = 30): string[] {
+  const today = Math.floor(now / 86_400_000) * 86_400_000;
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(today - (n - 1 - i) * 86_400_000);
+    return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  });
+}
 
 type Event = { at: number; html: string };
 
