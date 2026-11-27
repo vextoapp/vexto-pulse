@@ -57,3 +57,9 @@ test('mentions when Pulse itself was offline', () => {
   const html = renderPage(status([app('A', 'Family')], { pulse_offline: [{ started_at: t, ended_at: t + 600_000 }] }));
   assert.match(html, /Pulse lost its own internet connection/);
 });
+
+test('heartbeat is one image for screen readers, with no keyboard stops', () => {
+  const html = renderPage(status([app('A', 'Family'), app('Kata', 'Family', { state: 'down' })]));
+  assert.match(html, /<svg class="ecg"[^>]*role="img" aria-label="Heartbeat line: 1 of 2 apps working"/);
+  assert.doesNotMatch(html, /tabindex|aria-live/);
+});

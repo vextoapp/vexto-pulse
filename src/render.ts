@@ -46,7 +46,7 @@ export function renderPage(s: Status): string {
 
   <div class="ecg-box">
     ${heartbeat(groups)}
-    <div class="ecg-cap"><span>One beat per app, grouped as below. A flat red line means an app is down.</span><output id="beat" aria-live="polite"></output></div>
+    <div class="ecg-cap"><span>One beat per app, grouped as below. A flat red line means an app is down.</span><output id="beat"></output></div>
   </div>
 
   <div class="stats">
@@ -128,6 +128,7 @@ const plainHeadline = (s: Status) => Object.values(headlineParts(s)).filter(Bool
 function heartbeat(groups: [string, AppStatus[]][]): string {
   const GAP = 0.6, W = 1000, BASE = 58;
   const count = groups.reduce((n, [, apps]) => n + apps.length, 0);
+  const working = groups.reduce((n, [, apps]) => n + apps.filter((a) => a.state === 'up').length, 0);
   const u = W / (count + GAP * (groups.length - 1));
   let x = 0;
   const parts: string[] = [];
@@ -147,13 +148,13 @@ function heartbeat(groups: [string, AppStatus[]][]): string {
             `L${p(0.78)} ${f(BASE - 9 * k)} L${p(0.88)} ${BASE} L${p(1)} ${BASE}`;
       const label = esc(`${a.name}: ${STATE_LABEL[a.state]}`);
       parts.push(
-        `<rect x="${p(0)}" y="0" width="${f(u)}" height="100" tabindex="0" aria-label="${label}"></rect>` +
+        `<rect x="${p(0)}" y="0" width="${f(u)}" height="100" data-label="${label}"></rect>` +
           `<path class="beat ${BEAT[a.state]}" d="${d}"><title>${label}</title></path>`,
       );
       x += u;
     }
   });
-  return `<svg class="ecg" viewBox="0 0 ${W} 100" preserveAspectRatio="none" role="group" aria-label="Heartbeat line, one beat per app">${parts.join('')}</svg>`;
+  return `<svg class="ecg" viewBox="0 0 ${W} 100" preserveAspectRatio="none" role="img" aria-label="Heartbeat line: ${working} of ${count} apps working">${parts.join('')}</svg>`;
 }
 const BEAT: Record<AppState, string> = { up: 'ok', degraded: 'warn', down: 'down', unknown: 'none' };
 const f = (n: number) => n.toFixed(1);
@@ -281,8 +282,8 @@ const fl=document.querySelector('.filters');fl.hidden=false;
 fl.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
 for(const x of fl.querySelectorAll('button'))x.setAttribute('aria-pressed',String(x===b));
 for(const g of document.querySelectorAll('.group'))g.hidden=b.dataset.g!=='all'&&g.dataset.g!==b.dataset.g});
-const out=document.getElementById('beat'),show=e=>{const r=e.target.closest&&e.target.closest('.ecg rect');if(r)out.textContent=r.getAttribute('aria-label')};
-for(const ev of ['mouseover','focusin','click'])document.querySelector('.ecg').addEventListener(ev,show);`;
+const out=document.getElementById('beat'),show=e=>{const r=e.target.closest&&e.target.closest('.ecg rect');if(r)out.textContent=r.dataset.label};
+for(const ev of ['mouseover','click'])document.querySelector('.ecg').addEventListener(ev,show);`;
 
 const CSS = `
 @font-face{font-family:Geist;src:url(/geist.woff2) format("woff2");font-weight:100 900;font-display:swap}
@@ -314,7 +315,7 @@ h1 .rest{color:var(--faint)}
 .ecg path{fill:none;stroke-width:1.75;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .ecg .ok,.ecg .link{stroke:var(--ok)}.ecg .warn{stroke:var(--warn)}.ecg .down{stroke:var(--down);stroke-width:2.25}.ecg .none{stroke:var(--empty);stroke-width:2.25}
 .ecg rect{fill:transparent;outline:none}
-.ecg rect:hover+path,.ecg rect:focus-visible+path{stroke-width:3}
+.ecg rect:hover+path{stroke-width:3}
 @media (prefers-reduced-motion:no-preference){.ecg{animation:draw 1.6s cubic-bezier(.3,.6,.3,1) .1s both}}
 @keyframes draw{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
 .ecg-cap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.25rem 1rem;font-size:.8rem;color:var(--faint);margin-top:.5rem}
