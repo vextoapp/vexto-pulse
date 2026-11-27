@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { App } from './config.ts';
 import type { Scores } from './pagespeed.ts';
 import { longDuration } from './render.ts';
-import { sentryDays, type Week } from './week.ts';
+import { previousWeek, sentryDays, type Week } from './week.ts';
 
 export type AppWeek = {
   name: string;
@@ -189,3 +189,29 @@ export function changes(cur: AppWeek[], prev: AppWeek[] | null): string[] {
 }
 
 export const verdict = (issues: number) => (issues === 0 ? 'A good week' : issues <= 2 ? 'A mixed week' : 'A rough week');
+
+// ---- 8-week trend for the whole portfolio ----
+export type TrendPoint = { key: string; label: string; uptime: number | null; errors: number | null };
+
+export function trend(db: DatabaseSync, apps: App[], w: Week, n = 8): TrendPoint[] {
+  const names = JSON.stringify(apps.map((a) => a.name));
+  const checksQ = db.prepare(
+    'SELECT count(*) AS n, sum(ok) AS ok FROM checks WHERE ts >= ? AND ts < ? AND app IN (SELECT value FROM json_each(?))',
+  );
+  const linked = db.prepare('SELECT 1 FROM sentry_daily WHERE app IN (SELECT value FROM json_each(?)) LIMIT 1').get(names);
+  const errorsQ = db.prepare(
+    `SELECT coalesce(sum(errors), 0) AS n FROM sentry_daily
+     WHERE app IN (SELECT value FROM json_each(?)) AND day IN (SELECT value FROM json_each(?))`,
+  );
+  const weeks = [w];
+  while (weeks.length < n) weeks.unshift(previousWeek(weeks[0]));
+  return weeks.map((x) => {
+    const c = checksQ.get(x.start, x.end, names)!;
+    return {
+      key: x.key,
+      label: x.label,
+      uptime: (c.n as number) ? ((c.ok as number) / (c.n as number)) * 100 : null,
+      errors: linked ? (errorsQ.get(names, JSON.stringify(sentryDays(x)))!.n as number) : null,
+    };
+  });
+}

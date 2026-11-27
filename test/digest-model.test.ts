@@ -160,3 +160,19 @@ test('quick win: lowest accessibility at 95 or below', () => {
   assert.equal(m.quickWin([aw('A', { scores: sc(90, 93) }), aw('B', { scores: sc(90, 91) })] as never), "B's accessibility score is 91, an easy one to raise.");
   assert.equal(m.quickWin([aw('A', { scores: sc(90, 96) })] as never), null);
 });
+
+// ---- Task 4: trend ----
+test('8-week trend ends with this week; empty weeks have no uptime', () => {
+  const { db, check, sentry } = setup();
+  check.run('A', W.start + H, 1, 500, 60);
+  check.run('A', W.start + 2 * H, 0, null, 60);
+  sentry.run('A', '2026-11-16', 4);
+  const t = m.trend(db, [app('A'), app('B')], W);
+  assert.equal(t.length, 8);
+  assert.equal(t[7].key, '2026-11-16');
+  assert.equal(t[7].label, '16–22 Nov');
+  assert.equal(t[7].uptime, 50);
+  assert.equal(t[7].errors, 4);
+  assert.equal(t[0].key, '2026-09-28');
+  assert.equal(t[0].uptime, null);
+});
