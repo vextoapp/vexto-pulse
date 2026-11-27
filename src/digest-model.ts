@@ -27,10 +27,7 @@ export function appWeeks(db: DatabaseSync, apps: App[], w: Week): AppWeek[] {
     `SELECT started_at, ended_at FROM incidents
      WHERE app = ? AND started_at < ? AND (ended_at IS NULL OR ended_at > ?) ORDER BY started_at`,
   );
-  // A week's error count needs all 7 Sentry days stored; fewer means not linked yet (or not backfilled).
-  const errorsQ = db.prepare(
-    'SELECT count(*) AS days, coalesce(sum(errors), 0) AS n FROM sentry_daily WHERE app = ? AND day IN (SELECT value FROM json_each(?))',
-  );
+  const errorsQ = db.prepare(WEEK_ERRORS_SQL);
   const scoresQ = db.prepare(
     `SELECT performance, accessibility, best_practices, seo FROM pagespeed
      WHERE app = ? AND ts < ? AND error IS NULL ORDER BY ts DESC LIMIT 2`,
@@ -60,6 +57,9 @@ export function appWeeks(db: DatabaseSync, apps: App[], w: Week): AppWeek[] {
   });
 }
 
+// A week's error count needs all 7 Sentry days stored; fewer means not linked yet (or not backfilled).
+const WEEK_ERRORS_SQL = `SELECT count(*) AS days, coalesce(sum(errors), 0) AS n FROM sentry_daily
+  WHERE app = ? AND day IN (SELECT value FROM json_each(?))`;
 const weekErrors = (r: Record<string, unknown>) => ((r.days as number) === 7 ? (r.n as number) : null);
 
 const toScores = (r: Record<string, unknown>): Scores => ({
@@ -140,8 +140,20 @@ export function quickWin(cur: AppWeek[]): string | null {
 
 export type Revisit = { app: string; rule: number; done: boolean; text: string };
 
-const show = (metric: string, v: number) =>
-  metric === 'outage' ? (v ? longDuration(v / 1000) : 'none') : metric === 'uptime' ? `${v.toFixed(1)}%` : metric === 'response' ? secs(v) : metric === 'certificate' ? `${v} days` : String(v);
+function show(metric: string, v: number): string {
+  switch (metric) {
+    case 'outage':
+      return v ? longDuration(v / 1000) : 'none';
+    case 'uptime':
+      return `${v.toFixed(1)}%`;
+    case 'response':
+      return secs(v);
+    case 'certificate':
+      return `${v} days`;
+    default:
+      return String(v);
+  }
+}
 
 function currentValue(metric: string, a: AppWeek): number | null {
   if (metric === 'outage') return a.outage_ms;
@@ -161,7 +173,7 @@ export function revisit(last: Issue | null, cur: AppWeek[], prev: AppWeek[] | nu
   const still = issuesFor(a, byName(prev).get(a.name)).find((i) => i.rule === last.rule);
   const now = currentValue(last.metric, a);
   if (now == null) return { app: a.name, rule: last.rule, done: false, text: `Not checked: no data this week for ${a.name}.` };
-  const nowText = now == null ? 'no data' : show(last.metric, now);
+  const nowText = show(last.metric, now);
   return still
     ? { app: a.name, rule: last.rule, done: false, text: `Still open: ${a.name} ${last.metric} ${nowText}.` }
     : { app: a.name, rule: last.rule, done: true, text: `Done: ${a.name} ${last.metric} ${show(last.metric, last.value)} → ${nowText}.` };
@@ -204,19 +216,17 @@ export function trend(db: DatabaseSync, apps: App[], w: Week, n = 8): TrendPoint
     'SELECT count(*) AS n, sum(ok) AS ok FROM checks WHERE ts >= ? AND ts < ? AND app IN (SELECT value FROM json_each(?))',
   );
   // Per app, so an app with only part of a week stored doesn't count; null when no app has a full week.
-  const errorsQ = db.prepare(
-    `SELECT count(*) AS days, coalesce(sum(errors), 0) AS n FROM sentry_daily
-     WHERE app = ? AND day IN (SELECT value FROM json_each(?))`,
-  );
+  const errorsQ = db.prepare(WEEK_ERRORS_SQL);
   const weeks = [w];
   while (weeks.length < n) weeks.unshift(previousWeek(weeks[0]));
   return weeks.map((x) => {
     const c = checksQ.get(x.start, x.end, names)!;
+    const days = JSON.stringify(sentryDays(x));
     return {
       key: x.key,
       label: x.label,
       uptime: (c.n as number) ? ((c.ok as number) / (c.n as number)) * 100 : null,
-      errors: sumKnown(apps.map((a) => weekErrors(errorsQ.get(a.name, JSON.stringify(sentryDays(x)))!))),
+      errors: sumKnown(apps.map((a) => weekErrors(errorsQ.get(a.name, days)!))),
     };
   });
 }
@@ -247,17 +257,18 @@ export function buildDigest(db: DatabaseSync, apps: App[], w: Week): Digest {
   const prev = appWeeks(db, apps, prevWeek);
   const issues = findIssues(cur, prev);
   const points = trend(db, apps, w);
+  const thisWeek = points.at(-1)!;
   // Only what went wrong this week counts toward the verdict. Standing issues (certificates, PageSpeed)
   // still show in the focus and attention lists.
   const weekly = issues.filter((i) => i.rule !== 4 && i.rule !== 5).length;
   return {
     week: w.key,
     label: w.label,
-    verdict: points.at(-1)!.uptime == null ? 'Not enough data yet' : verdict(weekly),
+    verdict: thisWeek.uptime == null ? 'Not enough data yet' : verdict(weekly),
     issues_count: weekly,
-    uptime: points.at(-1)!.uptime,
+    uptime: thisWeek.uptime,
     outages: cur.reduce((n, a) => n + a.outages.length, 0),
-    errors: points.at(-1)!.errors,
+    errors: thisWeek.errors,
     revisit: revisit(getStored(db, prevWeek.key)?.digest.focus ?? null, cur, prev),
     focus: issues[0] ?? null,
     also: issues.slice(1, 3),
