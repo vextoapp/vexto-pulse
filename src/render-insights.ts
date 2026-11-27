@@ -1,7 +1,7 @@
 // Private /insights page (behind Cloudflare Access): same look as the status page, plus a table.
 import type { InsightRow, Insights } from './insights-model.ts';
 import type { Scores } from './pagespeed.ts';
-import { CSS, esc, pct, time } from './render.ts';
+import { esc, pct, time } from './render.ts';
 
 const SCORE_KEYS: (keyof Scores)[] = ['performance', 'accessibility', 'best_practices', 'seo'];
 
@@ -18,7 +18,7 @@ export function renderInsights(i: Insights): string {
 <meta name="theme-color" content="#e9eeeb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
 <title>Insights · Vexto Pulse</title>
-<style>${CSS}${INSIGHTS_CSS}</style>
+<style>${BASE_CSS}${INSIGHTS_CSS}</style>
 </head>
 <body>
 <main class="wide">
@@ -102,4 +102,71 @@ abbr{text-decoration:none}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .delta{font-size:.75rem;color:var(--muted)}
 td[colspan]{text-align:left}
+`;
+
+// The original status-page styles; the insights page still uses them.
+const BASE_CSS = `
+:root{
+  --paper:#e9eeeb;--surface:#f6f8f7;--ink:#17211d;--muted:#5b6862;--rule:#cdd6d1;
+  --up:#1d8a57;--warn:#a86a10;--down:#c23b2a;--idle:#8a958f;--trace:#2b5d4a;
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#111816;--surface:#18211e;--ink:#e3ebe7;--muted:#93a29b;--rule:#2a3631;
+  --up:#3ccf8a;--warn:#e2a740;--down:#ff6b57;--idle:#6b7872;--trace:#8fd3b4;
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+main{max-width:44rem;margin:0 auto;padding:2.5rem 1rem 3rem}
+a{color:inherit;text-underline-offset:.2em;text-decoration-thickness:1px}
+a:focus-visible{outline:2px solid var(--trace);outline-offset:3px;border-radius:2px}
+.muted{color:var(--muted)}
+.brand{display:flex;align-items:center;gap:.6rem;margin:0 0 2.5rem;font-weight:600;letter-spacing:-.01em}
+h1{font-size:clamp(2rem,7vw,3.25rem);line-height:1.05;letter-spacing:-.035em;font-weight:700;margin:0 0 .75rem;text-wrap:balance}
+.sub{margin:0 0 3rem;color:var(--muted)}
+h2{font-size:1rem;font-weight:600;margin:0 0 .75rem;color:var(--muted)}
+section{margin-bottom:2.75rem}
+ul{list-style:none;margin:0;padding:0}
+
+.led{flex:none;width:.7rem;height:.7rem;border-radius:50%;background:var(--idle)}
+.led-up,.led-operational{background:var(--up);box-shadow:0 0 0 3px color-mix(in srgb,var(--up) 22%,transparent),0 0 12px var(--up)}
+.led-degraded,.led-partial_outage{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent),0 0 12px var(--warn)}
+.led-down,.led-major_outage{background:var(--down);box-shadow:0 0 0 3px color-mix(in srgb,var(--down) 22%,transparent),0 0 12px var(--down)}
+.brand .led{width:.85rem;height:.85rem;animation:beat 2.4s ease-in-out infinite}
+@keyframes beat{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.brand .led{animation:none}}
+
+.apps{background:var(--surface);border:1px solid var(--rule);border-radius:14px}
+.app{padding:1.1rem 1.1rem 1rem}
+.app+.app{border-top:1px solid var(--rule)}
+.app-head{display:flex;align-items:center;gap:.75rem}
+.app-name{flex:1;min-width:0;display:flex;flex-direction:column}
+.app-name a{font-weight:600;font-size:1.05rem;text-decoration:none}
+.app-name a:hover{text-decoration:underline}
+.app-name .muted,.app-now .muted{font-size:.875rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-now{display:flex;flex-direction:column;align-items:flex-end;text-align:right;min-width:0;max-width:45%}
+.state{font-weight:600;font-size:.95rem}
+.state-up .state{color:var(--up)}.state-degraded .state{color:var(--warn)}.state-down .state{color:var(--down)}
+.state-down-text{color:var(--down);font-weight:600}
+
+.spark{display:block;width:100%;height:2.5rem;margin:.9rem 0 0}
+.spark-axis{display:flex;justify-content:space-between;font-size:.75rem;margin:.15rem 0 .6rem}
+.spark polyline{fill:none;stroke:var(--trace);stroke-width:1.5;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.spark circle{fill:var(--trace)}
+.spark .base{stroke:var(--rule);stroke-width:1;vector-effect:non-scaling-stroke}
+.spark .fail{fill:var(--down)}
+.spark-empty{display:flex;align-items:center;font-size:.875rem;border-bottom:1px solid var(--rule)}
+
+.app-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:.25rem 1rem;font-size:.875rem;color:var(--muted)}
+.uptime{display:flex;gap:1.25rem;margin:0}
+.uptime div{display:flex;gap:.4rem}
+.uptime dd{margin:0;color:var(--ink);font-weight:500}
+.warn{color:var(--warn);font-weight:600}
+
+.incidents li{display:grid;grid-template-columns:1fr auto;gap:0 1rem;padding:.7rem 0;border-bottom:1px solid var(--rule);font-size:.95rem}
+.incidents li:first-child{border-top:1px solid var(--rule)}
+.inc-app{font-weight:600}
+.incidents li>span:nth-child(2){grid-column:1}
+.incidents li>span:nth-child(3){grid-row:1;grid-column:2;text-align:right}
+footer{font-size:.875rem;padding-top:1rem}
 `;
