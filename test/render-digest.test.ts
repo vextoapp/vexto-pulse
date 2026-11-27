@@ -52,7 +52,20 @@ test('no-data weeks say so in the subject and summary', () => {
 
 test('the 8-week trend shows errors too', () => {
   const d = digest({ trend: [{ key: '2026-11-16', label: '16–22 Nov', uptime: 99.8, errors: 7 }] });
-  assert.match(digestEmail(d, URL_).html, /Errors in Sentry/);
+  assert.match(digestEmail(d, URL_).html, /errors in Sentry/i);
   assert.match(digestEmail(d, URL_).html, />7</);
-  assert.match(digestSection(d, [], null, null), /Errors in Sentry/);
+  assert.match(digestSection(d, [], null, null), /errors in Sentry/i);
+});
+
+test('the trend shows each week\'s uptime as a number, not just a colour', () => {
+  const d = digest({ trend: [{ key: '2026-11-16', label: '16–22 Nov', uptime: 98.4, errors: 3 }, { key: '2026-11-23', label: '23–29 Nov', uptime: null, errors: null }] });
+  for (const html of [digestEmail(d, URL_).html, digestSection(d, [], null, null)]) {
+    assert.match(html, />98\.4%</);
+    assert.match(html, />no data</);
+  }
+});
+
+test('the trend never rounds a week with downtime up to 100%', () => {
+  const d = digest({ trend: [{ key: '2026-11-16', label: '16–22 Nov', uptime: 99.97, errors: 0 }] });
+  assert.match(digestSection(d, [], null, null), /<b>99\.9%<\/b>/);
 });
