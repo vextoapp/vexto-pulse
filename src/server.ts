@@ -6,9 +6,8 @@ import { openDb } from './db.ts';
 import { getStatus } from './status.ts';
 import { renderPage } from './render.ts';
 import { getInsights } from './insights-model.ts';
-import { renderInsights } from './render-insights.ts';
+import { renderInsights, type WeekView } from './render-insights.ts';
 import { getStored, listWeeks } from './digest-model.ts';
-import { digestSection } from './render-digest.ts';
 import { STATIC } from './static-files.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -16,12 +15,14 @@ const HOST = process.env.HOST ?? '127.0.0.1';
 
 const apps = loadApps();
 const db = openDb();
-// The stored digest for ?week=YYYY-MM-DD, or the newest one.
-function weeklySummary(asked: string | null): string {
+// The newest stored digest drives the page; ?week=YYYY-MM-DD only changes the "How the week went" card.
+function weekView(asked: string | null): WeekView {
   const weeks = listWeeks(db);
-  const key = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && weeks.some((w) => w.key === asked) ? asked : (weeks[0]?.key ?? null);
+  const latestKey = weeks[0]?.key ?? null;
+  const key = asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && weeks.some((w) => w.key === asked) ? asked : latestKey;
   const stored = key ? getStored(db, key) : null;
-  return digestSection(stored?.digest ?? null, weeks, key, stored && !stored.emailed_at ? stored.email_error : null);
+  const latest = latestKey === key ? (stored?.digest ?? null) : getStored(db, latestKey!)?.digest ?? null;
+  return { latest, shown: stored?.digest ?? null, weeks, selected: key, sendError: stored && !stored.emailed_at ? stored.email_error : null };
 }
 
 const files = new Map(Object.entries(STATIC).map(([path, s]) => [path, { type: s.type, body: readFileSync(new URL(`../public/${s.file}`, import.meta.url)) }]));
@@ -52,7 +53,7 @@ const server = createServer((req, res) => {
     if (path === '/insights' && (req.url ?? '').split('?')[0] === '/insights') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
       if (req.method === 'HEAD') return res.end();
-      return res.end(renderInsights(getInsights(db, apps), weeklySummary(new URL(req.url ?? '/', 'http://localhost').searchParams.get('week'))));
+      return res.end(renderInsights(getInsights(db, apps), weekView(new URL(req.url ?? '/', 'http://localhost').searchParams.get('week'))));
     }
     send(404, 'text/plain', 'Not found');
   } catch (err) {

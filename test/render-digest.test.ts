@@ -69,3 +69,12 @@ test('the trend never rounds a week with downtime up to 100%', () => {
   const d = digest({ trend: [{ key: '2026-11-16', label: '16–22 Nov', uptime: 99.97, errors: 0 }] });
   assert.match(digestSection(d, [], null, null), /<b>99\.9%<\/b>/);
 });
+
+test('page section: the week card with a verdict pill, no focus or attention lists', () => {
+  const html = digestSection(digest({ verdict: 'A mixed week', focus: issue('A', 'A had 12 errors.'), attention: [issue('A', 'A had 12 errors.')] }), [], null, null);
+  assert.match(html, /<h2 id="wk-h">How the week went<\/h2>/);
+  assert.match(html, /<span class="pill pill-warn"><i><\/i>A mixed week<\/span>/);
+  assert.match(html, /<p class="verdict">Up 99\.8% of the time, no outages, 3 errors in Sentry\.<\/p>/);
+  assert.match(html, /Last week&#39;s focus/);
+  assert.doesNotMatch(html, /Focus this week|Needs attention/);
+});

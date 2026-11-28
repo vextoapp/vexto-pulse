@@ -25,12 +25,15 @@ const pctShort = (v: number | null) => (v == null ? 'no data' : v >= 100 ? '100%
 
 const NO_DATA = 'Not enough data yet';
 
-function summary(d: Digest): string {
-  if (d.verdict === NO_DATA) return `${NO_DATA}. Pulse has no checks for this week.`;
+// The week's numbers in one sentence, without the verdict.
+function facts(d: Digest): string {
+  if (d.verdict === NO_DATA) return 'Pulse has no checks for this week.';
   const parts = [`Up ${pct1(d.uptime)} of the time`, d.outages ? `${d.outages} outage${d.outages === 1 ? '' : 's'}` : 'no outages'];
   if (d.errors != null) parts.push(`${d.errors} error${d.errors === 1 ? '' : 's'} in Sentry`);
-  return `${d.verdict}. ${parts.join(', ')}.`;
+  return `${parts.join(', ')}.`;
 }
+
+const summary = (d: Digest) => `${d.verdict}. ${facts(d)}`;
 
 // "16–22" from "16–22 Nov", and "26–1" from "26 Oct – 1 Nov".
 const shortLabel = (label: string) => label.replace(/ [A-Z][a-z]{2}/g, '').replace(/ /g, '');
@@ -100,7 +103,9 @@ function emailTrend(points: TrendPoint[]): string {
   <p style="margin:6px 0 0;font-size:12px;color:${C.sub}">Bars: uptime (green 99.5% or more, amber 99–99.5%, red under 99%). Bottom row: errors in Sentry.</p>`;
 }
 
-// ---- Page section on /insights ----
+// ---- "How the week went" card on /insights ----
+const PILL: Record<string, string> = { 'A good week': 'ok', 'A mixed week': 'warn', 'A rough week': 'down' };
+
 export function digestSection(
   d: Digest | null,
   weeks: { key: string; label: string }[],
@@ -116,41 +121,49 @@ export function digestSection(
         <button type="submit">Show</button>
       </form>`
     : '';
+  const block = (title: string, body: string) => `<div class="block"><h3>${esc(title)}</h3><div>${body}</div></div>`;
   const body = d
-    ? `<p class="verdict">${esc(summary(d))}</p>
+    ? `<div class="week-head"><span class="pill pill-${PILL[d.verdict] ?? 'none'}"><i></i>${esc(d.verdict)}</span>${picker}</div>
+       <p class="verdict">${esc(facts(d))}</p>
        ${sendError ? `<p class="unsent">Not sent: ${esc(sendError)}</p>` : ''}
-       ${sections(d).map((s) => `<h3>${esc(s.title)}</h3><ul>${s.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`).join('')}
-       <h3>Last 8 weeks</h3>
-       <div class="trend">${d.trend
-         .map((t) => `<div title="${esc(t.label)}: ${pct1(t.uptime)}${t.errors != null ? `, ${t.errors} errors` : ''}"><i class="t-${band(t.uptime)}"></i><b>${pctShort(t.uptime)}</b><span>${esc(shortLabel(t.label))}</span></div>`)
-         .join('')}</div>
-       <div class="trend errs">${d.trend.map((t) => `<div><span>${t.errors ?? '–'}</span></div>`).join('')}</div>
-       <p class="muted small">Bars: uptime. Bottom row: errors in Sentry.</p>`
-    : '<p class="muted">The first summary arrives Monday at 7 am.</p>';
-  return `<section class="digest" aria-labelledby="dg-h">
-    <div class="dg-head"><h2 id="dg-h">Weekly summaries</h2>${picker}</div>
-    ${body}
+       <div class="blocks">
+         ${block("Last week's focus", `<p>${esc(d.revisit?.text ?? 'Nothing to check yet.')}</p>`)}
+         ${block('What changed', d.changes.length ? `<ul>${d.changes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : '<p>Nothing big changed since last week.</p>')}
+         ${block('Last 8 weeks', `<div class="trend">${d.trend
+           .map((t) => `<div title="${esc(t.label)}: ${pct1(t.uptime)}${t.errors != null ? `, ${t.errors} errors` : ''}"><i class="t-${band(t.uptime)}"></i><b>${pctShort(t.uptime)}</b><span>${esc(shortLabel(t.label))}</span></div>`)
+           .join('')}</div>
+           <div class="trend errs">${d.trend.map((t) => `<div><span>${t.errors ?? '–'}</span></div>`).join('')}</div>
+           <p class="small">Bars: uptime. Bottom row: errors in Sentry.</p>`)}
+       </div>`
+    : `<div class="week-head"><p>The first summary arrives Monday at 7 am.</p>${picker}</div>`;
+  return `<section aria-labelledby="wk-h">
+    <h2 id="wk-h">How the week went</h2>
+    <div class="card week">${body}</div>
   </section>`;
 }
 
 export const DIGEST_CSS = `
-.digest{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:1.1rem 1.2rem;margin-bottom:2rem}
-.dg-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem 1rem;margin-bottom:.75rem}
-.dg-head h2{margin:0}
-.pick{display:flex;align-items:center;gap:.4rem;font-size:.9rem}
-.pick select,.pick button{font:inherit;font-size:.9rem;padding:.25rem .5rem;border:1px solid var(--rule);border-radius:8px;background:var(--paper);color:var(--ink)}
-.verdict{font-size:1.15rem;font-weight:600;margin:0 0 .5rem}
-.unsent{color:var(--down);font-weight:600}
-.digest h3{font-size:.95rem;margin:1rem 0 .35rem}
-.digest ul{margin:0;padding-left:1.1rem}
-.digest li{margin:.2rem 0}
-.trend{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;max-width:28rem}
-.trend div{display:flex;flex-direction:column;align-items:center;gap:.2rem;font-size:.75rem;color:var(--muted)}
-.trend i{display:block;width:100%;height:1.75rem;border-radius:3px}
-.trend b{font-weight:500;font-size:.7rem;color:var(--ink);font-variant-numeric:tabular-nums;text-align:center;line-height:1.2}
-.trend span{text-align:center}
-.trend.errs span{color:var(--ink);font-size:.8rem;font-variant-numeric:tabular-nums}
-.pick button:hover,.pick select:hover{border-color:var(--muted)}
-.digest .small{font-size:.8rem;margin-top:.35rem}
-.t-ok{background:var(--up)}.t-minor{background:var(--warn)}.t-major{background:var(--down)}.t-none{background:var(--rule)}
+.week{padding:1.25rem 1.25rem 1.1rem}
+.week-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem 1rem}
+.pick{display:flex;align-items:center;gap:.45rem;font-size:.85rem;color:var(--sub)}
+.pick select,.pick button{font:inherit;font-size:.85rem;padding:.3rem .6rem;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.pick button:hover,.pick select:hover{border-color:var(--faint)}
+.pill{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:500;padding:.2rem .65rem;border-radius:999px;--c:var(--faint);color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill-ok{--c:var(--ok)}.pill-warn{--c:var(--warn)}.pill-down{--c:var(--down)}
+.verdict{font-size:1.2rem;letter-spacing:-.015em;line-height:1.35;margin-top:.8rem}
+.unsent{color:var(--down);font-weight:500;margin-top:.5rem}
+.blocks{display:grid;gap:1rem;margin-top:1.1rem}
+.block{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:.25rem 1rem;padding-top:1rem;border-top:1px solid var(--line)}
+.block h3{font-size:.8rem;font-weight:500;color:var(--faint);padding-top:.1rem}
+.block p,.block li{font-size:.92rem}
+.block ul{padding-left:1.1rem;list-style:disc}
+@media (max-width:560px){.block{grid-template-columns:1fr}}
+.trend{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.trend div{display:flex;flex-direction:column;align-items:center;gap:.2rem;font-size:.72rem;color:var(--faint);text-align:center;line-height:1.2}
+.trend i{display:block;width:100%;height:1.6rem;border-radius:3px}
+.trend b{font-weight:500;color:var(--ink)}
+.trend.errs{margin-top:.3rem}
+.trend.errs span{color:var(--ink);font-size:.8rem}
+.t-ok{background:var(--ok)}.t-minor{background:var(--warn)}.t-major{background:var(--down)}.t-none{background:var(--empty)}
 `;
