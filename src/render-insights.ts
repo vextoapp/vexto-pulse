@@ -108,7 +108,7 @@ const GROUPS: { id: Group; colour: string; title: string; blurb: string }[] = [
     id: 'sentry',
     colour: 'var(--faint)',
     title: 'Set up error tracking',
-    blurb: 'Pulse can\'t see crashes on these apps. Connecting Sentry is a one-time job per app, and it makes the "errors rising" rule work for them.',
+    blurb: 'Pulse can\'t see crashes on these apps. Connecting Sentry is a one-time job per app, and it makes the “errors rising” rule work for them.',
   },
   { id: 'ok', colour: 'var(--ok)', title: 'Healthy', blurb: 'Up, scoring well, and Sentry is connected. Nothing to do.' },
 ];
@@ -164,7 +164,7 @@ const REFERENCE = `<details>
       <li><div><strong>Weak or falling PageSpeed</strong><span class="tag">standing</span><p>Speed under 50, accessibility under 90, or any score down 10 points.</p></div></li>
       <li><div><strong>Much slower than last week</strong><span class="tag">this week</span><p>Average response at least twice as slow and over 2 seconds.</p></div></li>
     </ol>
-    <p class="small">"This week" problems decide whether the week was good, mixed or rough. "Standing" ones become your focus when nothing broke.</p>
+    <p class="small">“This week” problems decide whether the week was good, mixed or rough. “Standing” ones become your focus when nothing broke.</p>
   </div>
 </details>`;
 
@@ -175,6 +175,8 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
 p{margin:0}
 ul,ol{margin:0;padding:0;list-style:none}
 a{color:inherit}
+a:hover{color:var(--ink)}
+footer a{text-underline-offset:2px}
 :focus-visible{outline:2px solid var(--ok);outline-offset:3px;border-radius:6px}
 main{max-width:46rem;margin:0 auto;padding-block:3rem 4rem;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .brand{display:flex;align-items:center;gap:.5rem;font-weight:500;font-size:.9rem;color:var(--sub);margin-bottom:2.25rem}
