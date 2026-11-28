@@ -20,7 +20,8 @@ const PULSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke
 const ARROW = '<svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 
 export function renderInsights(i: Insights, w: WeekView): string {
-  const d = w.latest;
+  // A week with no checks says nothing about the apps, so it doesn't drive the page.
+  const d = w.latest?.uptime != null ? w.latest : null;
   const focus = pageFocus(i.rows, d);
   const guide = focus ? focusGuide(focus, i.rows.find((r) => r.name === focus.app)!.url) : null;
   const steps = nextSteps(i.rows, d);

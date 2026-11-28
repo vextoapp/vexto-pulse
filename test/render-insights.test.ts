@@ -114,6 +114,14 @@ test('a focus app missing from apps.json hands the focus to the next current app
   assert.match(html, /Nothing broke, so there&#39;s no fire/);
 });
 
+test('a summary with no data is treated as no summary yet', () => {
+  const empty = digest({ verdict: 'Not enough data yet', uptime: null });
+  const html = page([row({ name: 'A', reasons: ['Accessibility 84'] })], view(empty));
+  assert.match(html, /<h1>Your first weekly summary arrives Monday at 7 am\.<\/h1>/);
+  assert.match(html, /class="nm">A<small>Accessibility 84/);
+  assert.match(html, /Not enough data yet/);
+});
+
 test('with only a removed app in the digest, the page says nothing to fix consistently', () => {
   const html = page([row({})], view(digest({ focus: a11y('Gone', 70), attention: [a11y('Gone', 70)] })));
   assert.match(html, /Nothing to fix this week\./);
