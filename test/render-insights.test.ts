@@ -107,3 +107,15 @@ test('links the icons and keeps the status page colours', () => {
   assert.match(html, /content="#0f1110"/);
   assert.match(html, /--line:#e8ebe9/);
 });
+
+test('a focus app missing from apps.json hands the focus to the next current app', () => {
+  const html = page([eclipsend], view(digest({ focus: a11y('Gone', 70), attention: [a11y('Gone', 70), a11y('EclipSend', 84)] })));
+  assert.match(html, /This week, raise EclipSend&#39;s accessibility from 84 to 90\./);
+  assert.match(html, /Nothing broke, so there&#39;s no fire/);
+});
+
+test('with only a removed app in the digest, the page says nothing to fix consistently', () => {
+  const html = page([row({})], view(digest({ focus: a11y('Gone', 70), attention: [a11y('Gone', 70)] })));
+  assert.match(html, /Nothing to fix this week\./);
+  assert.match(html, /Nothing needs you this week\./);
+});

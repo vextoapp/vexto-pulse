@@ -2,7 +2,7 @@
 // gives every app one next step, and keeps the weekly summary and the reference below.
 import type { Digest } from './digest-model.ts';
 import type { Insights } from './insights-model.ts';
-import { type AppStep, type Group, focusGuide, nextSteps } from './next-step.ts';
+import { type AppStep, type Group, focusGuide, nextSteps, pageFocus } from './next-step.ts';
 import { DIGEST_CSS, digestSection } from './render-digest.ts';
 import { HEAD_ICONS, TOKENS_CSS, esc, pct, time } from './render.ts';
 
@@ -21,8 +21,8 @@ const ARROW = '<svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="curren
 
 export function renderInsights(i: Insights, w: WeekView): string {
   const d = w.latest;
-  const focusRow = d?.focus ? i.rows.find((r) => r.name === d.focus!.app) : undefined;
-  const guide = d?.focus && focusRow ? focusGuide(d.focus, focusRow.url) : null;
+  const focus = pageFocus(i.rows, d);
+  const guide = focus ? focusGuide(focus, i.rows.find((r) => r.name === focus.app)!.url) : null;
   const steps = nextSteps(i.rows, d);
   const lastRun = Math.max(0, ...i.rows.map((r) => r.pagespeed_at ?? 0));
   const n = i.rows.length;
@@ -35,8 +35,8 @@ export function renderInsights(i: Insights, w: WeekView): string {
   } else {
     const up = d.outages === 0 ? `All ${n} app${n === 1 ? '' : 's'} stayed up.` : `${d.outages} outage${d.outages === 1 ? '' : 's'} this week.`;
     h1 = `${up} ${guide ? `This week, ${guide.title[0].toLowerCase()}${guide.title.slice(1)}.` : 'Nothing to fix this week.'}`;
-    if (!d.focus) meta = 'Nothing needs you this week. A good week to ship something.';
-    else if (d.focus.rule === 4 || d.focus.rule === 5) {
+    if (!focus) meta = 'Nothing needs you this week. A good week to ship something.';
+    else if (focus.rule === 4 || focus.rule === 5) {
       meta = "Nothing broke, so there's no fire to put out. Use the week on your weakest standing score, then work down the list below.";
     } else meta = 'Something broke this week. Fix it first, then work down the list below.';
   }

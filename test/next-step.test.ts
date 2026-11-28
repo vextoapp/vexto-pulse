@@ -104,3 +104,29 @@ test('focusGuide has a guide for every metric the rules produce', () => {
     assert.ok(g.todo.length >= 2 && g.todo.length <= 3, m);
   }
 });
+
+test('focusGuide for a score that fell but is still above the bar uses the fall guide', () => {
+  const speed = focusGuide(issue('A', 5, 'performance', 85, "A's performance fell from 100 to 85."), 'https://a.vexto.app');
+  assert.equal(speed.title, "Win back A's performance score");
+  assert.match(speed.todo[0], /Lighthouse → Performance →/);
+  const access = focusGuide(issue('A', 5, 'accessibility', 91, "A's accessibility fell from 100 to 91."), 'https://a.vexto.app');
+  assert.equal(access.title, "Win back A's accessibility score");
+  assert.match(access.todo[0], /Lighthouse → Accessibility →/);
+});
+
+test('if the focus app is gone from apps.json, the next issue on a current app is the focus', () => {
+  const steps = nextSteps([row({ name: 'Forked' })], digest([a11y('Gone', 80), a11y('Forked', 87)], a11y('Gone', 80)));
+  assert.equal(steps[0].row.name, 'Forked');
+  assert.equal(steps[0].focus, true);
+});
+
+test('a healthy-looking app with weak accessibility is not told everything is good', () => {
+  const notes = nextSteps([row({ scores: { ...good, accessibility: 80 } })], digest([]))[0].notes;
+  assert.ok(notes.includes('Accessibility 80 is under your bar of 90. It will be a focus on Monday if nothing bigger comes up.'));
+  assert.ok(!notes.some((n) => n.startsWith('Every score')));
+});
+
+test('one Sentry error is singular', () => {
+  const notes = nextSteps([row({ errors_7d: 1, errors_prev_7d: 1 })], digest([]))[0].notes;
+  assert.ok(notes.includes('Sentry is connected: 1 error this week, 1 the week before.'));
+});

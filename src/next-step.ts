@@ -10,12 +10,20 @@ export type Guide = { title: string; why: string; todo: string[]; done: string }
 
 const ORDER: Record<Group, number> = { fix: 0, sentry: 1, ok: 2 };
 
+// The digest's focus, or, if that app has left apps.json, the next issue on an app that's still here.
+export function pageFocus(rows: InsightRow[], latest: Digest | null): Issue | null {
+  const here = new Set(rows.map((r) => r.name));
+  if (!latest) return null;
+  if (latest.focus && here.has(latest.focus.app)) return latest.focus;
+  return latest.attention.find((i) => here.has(i.app)) ?? null;
+}
+
 export function nextSteps(rows: InsightRow[], latest: Digest | null): AppStep[] {
   // attention is sorted by rule, then size, so an app's first issue is its most severe.
   const issues = new Map<string, string[]>();
   for (const i of latest?.attention ?? []) issues.set(i.app, [...(issues.get(i.app) ?? []), i.text]);
   const rank = new Map([...issues.keys()].map((app, n) => [app, n]));
-  const focusApp = latest?.focus?.app;
+  const focusApp = pageFocus(rows, latest)?.app;
 
   const steps = rows.map((row): AppStep => {
     const problems = latest ? (issues.get(row.name) ?? []) : row.reasons;
@@ -45,13 +53,15 @@ function notesFor(r: InsightRow, group: Group): string[] {
   if (u != null && u >= 99 && u < 99.5) {
     out.push(`Uptime ${pct(u)} is under your 99.5% target but above the 99% rule. Watch it; if it slips under 99% it becomes a focus.`);
   }
+  const a = s?.accessibility;
+  if (a != null && a < 90 && group !== 'fix') out.push(`Accessibility ${a} is under your bar of 90. It will be a focus on Monday if nothing bigger comes up.`);
   const p = s?.performance;
   if (p != null && p < 70) out.push(`Speed ${p} is the weakest score here. Not urgent (the rule is under 50), but it's the next thing to improve.`);
   else if (p != null && p < 80) out.push(`Speed ${p} could be better. Not urgent.`);
   if (s?.best_practices != null && s.best_practices < 100) out.push(`Best practices ${s.best_practices}: usually a browser console error or an outdated library.`);
   if (s?.seo != null && s.seo < 100) out.push(`SEO ${s.seo}: often a missing meta description.`);
   if (r.errors_7d == null && group === 'fix') out.push("Sentry isn't connected, so Pulse can't see crashes here. Connect it once this is fixed.");
-  if (r.errors_7d != null) out.push(`Sentry is connected: ${r.errors_7d} errors this week, ${r.errors_prev_7d ?? 0} the week before.`);
+  if (r.errors_7d != null) out.push(`Sentry is connected: ${r.errors_7d} error${r.errors_7d === 1 ? '' : 's'} this week, ${r.errors_prev_7d ?? 0} the week before.`);
   if (!out.length) out.push("Every score is in Google's good band. Nothing to do.");
   return out;
 }
@@ -60,7 +70,9 @@ export function focusGuide(i: Issue, url: string): Guide {
   const host = new URL(url).host;
   const lighthouse = (category: string) => `Open ${host} in Chrome, then DevTools → Lighthouse → ${category} → Analyse (mobile).`;
   const v = i.value;
-  switch (i.metric) {
+  // A score that fell but is still above its bar gets the "win it back" guide, not "raise it to the bar".
+  const metric = (i.metric === 'accessibility' && v >= 90) || (i.metric === 'performance' && v >= 50) ? 'fell' : i.metric;
+  switch (metric) {
     case 'outage':
       return {
         title: `Find out why ${i.app} went down`,
@@ -114,7 +126,7 @@ export function focusGuide(i: Issue, url: string): Guide {
       return {
         title: `Win back ${i.app}'s ${i.metric} score`,
         why: `${i.text} Something in a recent change made it worse.`,
-        todo: [lighthouse(i.metric === 'SEO' ? 'SEO' : 'Best practices'), 'Compare what it lists with your last deploy and fix the new items.'],
+        todo: [lighthouse({ performance: 'Performance', accessibility: 'Accessibility', SEO: 'SEO' }[i.metric] ?? 'Best practices'), 'Compare what it lists with your last deploy and fix the new items.'],
         done: `next week's PageSpeed run is back up 10 points`,
       };
   }
