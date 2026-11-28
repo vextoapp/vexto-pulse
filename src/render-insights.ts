@@ -35,11 +35,10 @@ export function renderInsights(i: Insights, w: WeekView): string {
   } else {
     const up = d.outages === 0 ? `All ${n} app${n === 1 ? '' : 's'} stayed up.` : `${d.outages} outage${d.outages === 1 ? '' : 's'} this week.`;
     h1 = `${up} ${guide ? `This week, ${guide.title[0].toLowerCase()}${guide.title.slice(1)}.` : 'Nothing to fix this week.'}`;
-    meta = !d.focus
-      ? 'Nothing needs you this week. A good week to ship something.'
-      : d.focus.rule === 4 || d.focus.rule === 5
-        ? "Nothing broke, so there's no fire to put out. Use the week on your weakest standing score, then work down the list below."
-        : 'Something broke this week. Fix it first, then work down the list below.';
+    if (!d.focus) meta = 'Nothing needs you this week. A good week to ship something.';
+    else if (d.focus.rule === 4 || d.focus.rule === 5) {
+      meta = "Nothing broke, so there's no fire to put out. Use the week on your weakest standing score, then work down the list below.";
+    } else meta = 'Something broke this week. Fix it first, then work down the list below.';
   }
 
   return `<!doctype html>
@@ -123,15 +122,16 @@ function group(g: (typeof GROUPS)[number], steps: AppStep[]): string {
 const band = (s: number | null | undefined) => (s == null ? 'n' : s >= 90 ? 'g' : s >= 50 ? 'a' : 'r');
 const upBand = (u: number | null) => (u == null ? 'n' : u >= 99.5 ? 'g' : u >= 99 ? 'a' : 'r');
 const num = (v: number | null | undefined) => (v == null ? '–' : String(v));
+const scoreSpan = (v: number | null | undefined) => `<span class="${band(v)}">${num(v)}</span>`;
 
 function appRow({ row: r, step, focus, notes }: AppStep): string {
   const s = r.scores;
   const nums: [string, string][] = [
     ['Uptime 30 days', `<span class="${upBand(r.uptime_30d)}">${pct(r.uptime_30d)}</span>`],
-    ['Speed', `<span class="${band(s?.performance)}">${num(s?.performance)}</span>`],
-    ['Accessibility', `<span class="${band(s?.accessibility)}">${num(s?.accessibility)}</span>`],
-    ['Best practices', `<span class="${band(s?.best_practices)}">${num(s?.best_practices)}</span>`],
-    ['SEO', `<span class="${band(s?.seo)}">${num(s?.seo)}</span>`],
+    ['Speed', scoreSpan(s?.performance)],
+    ['Accessibility', scoreSpan(s?.accessibility)],
+    ['Best practices', scoreSpan(s?.best_practices)],
+    ['SEO', scoreSpan(s?.seo)],
     ['Errors 7 days', r.errors_7d == null ? '<span class="n">not connected</span>' : `${r.errors_7d} <span class="n">(${r.errors_prev_7d ?? 0})</span>`],
   ];
   return `<details><summary><span class="nm">${esc(r.name)}<small>${focus ? 'Your focus this week: ' : ''}${esc(step)}</small></span>

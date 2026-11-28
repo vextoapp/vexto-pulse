@@ -19,9 +19,15 @@ export function nextSteps(rows: InsightRow[], latest: Digest | null): AppStep[] 
 
   const steps = rows.map((row): AppStep => {
     const problems = latest ? (issues.get(row.name) ?? []) : row.reasons;
-    const group: Group = problems.length ? 'fix' : row.errors_7d == null ? 'sentry' : 'ok';
-    const step =
-      group === 'fix' ? problems[0] : group === 'sentry' ? 'Connect Sentry so you see crashes' : 'Healthy. Leave it and ship something new.';
+    let group: Group = 'ok';
+    let step = 'Healthy. Leave it and ship something new.';
+    if (problems.length) {
+      group = 'fix';
+      step = problems[0];
+    } else if (row.errors_7d == null) {
+      group = 'sentry';
+      step = 'Connect Sentry so you see crashes';
+    }
     return { row, group, step, focus: group === 'fix' && row.name === focusApp, notes: [...problems.slice(1), ...notesFor(row, group)] };
   });
 
