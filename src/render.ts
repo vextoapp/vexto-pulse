@@ -31,8 +31,7 @@ export function renderPage(s: Status): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1110" media="(prefers-color-scheme: dark)">
+${HEAD_ICONS}
 <title>${esc(plainHeadline(s))} · Vexto Pulse</title>
 <meta name="description" content="Live status of Mohammad Syed's apps and websites, checked every 5 minutes.">
 <link rel="preload" href="/geist.woff2" as="font" type="font/woff2" crossorigin>
@@ -286,7 +285,8 @@ for(const g of document.querySelectorAll('.group'))g.hidden=b.dataset.g!=='all'&
 const out=document.getElementById('beat'),show=e=>{const r=e.target.closest&&e.target.closest('.ecg rect');if(r)out.textContent=r.dataset.label};
 for(const ev of ['mouseover','click'])document.querySelector('.ecg').addEventListener(ev,show);`;
 
-const CSS = `
+// The design tokens and font, shared with /insights.
+export const TOKENS_CSS = `
 @font-face{font-family:Geist;src:url(/geist.woff2) format("woff2");font-weight:100 900;font-display:swap}
 :root{
   --bg:#fff;--card:#fff;--sunk:#f6f7f6;--ink:#141716;--sub:#5f6763;--faint:#737b77;--line:#e8ebe9;
@@ -297,6 +297,16 @@ const CSS = `
   --bg:#0f1110;--card:#151817;--sunk:#1a1d1c;--ink:#eef1ef;--sub:#a1aaa5;--faint:#858e89;--line:#242927;
   --ok:#3fcf8e;--warn:#e8a33c;--down:#f06a55;--empty:#2a302d;
 }}
+`;
+
+// Tab icon, home-screen icon, web-app manifest and browser colour, for both pages.
+export const HEAD_ICONS = `<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1110" media="(prefers-color-scheme: dark)">`;
+
+const CSS = `${TOKENS_CSS}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--font);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}

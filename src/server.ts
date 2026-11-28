@@ -1,4 +1,4 @@
-// Long-running web server: GET / (status page), GET /api/status (JSON), /insights and the font.
+// Long-running web server: GET / (status page), GET /api/status (JSON), /insights and the static files.
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { loadApps } from './config.ts';
@@ -9,6 +9,7 @@ import { getInsights } from './insights-model.ts';
 import { renderInsights } from './render-insights.ts';
 import { getStored, listWeeks } from './digest-model.ts';
 import { digestSection } from './render-digest.ts';
+import { STATIC } from './static-files.ts';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -23,7 +24,7 @@ function weeklySummary(asked: string | null): string {
   return digestSection(stored?.digest ?? null, weeks, key, stored && !stored.emailed_at ? stored.email_error : null);
 }
 
-const font = readFileSync(new URL('../public/Geist-Variable.woff2', import.meta.url)); // 69 KB, Geist (SIL OFL)
+const files = new Map(Object.entries(STATIC).map(([path, s]) => [path, { type: s.type, body: readFileSync(new URL(`../public/${s.file}`, import.meta.url)) }]));
 
 const server = createServer((req, res) => {
   const send = (code: number, type: string, body: string) => {
@@ -40,9 +41,10 @@ const server = createServer((req, res) => {
   }
   try {
     if (path === '/') return send(200, 'text/html; charset=utf-8', renderPage(getStatus(db, apps)));
-    if (path === '/geist.woff2') {
-      res.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=604800' });
-      return res.end(req.method === 'HEAD' ? undefined : font);
+    const file = files.get(path);
+    if (file) {
+      res.writeHead(200, { 'content-type': file.type, 'cache-control': 'public, max-age=604800' });
+      return res.end(req.method === 'HEAD' ? undefined : file.body);
     }
     if (path === '/api/status') return send(200, 'application/json', JSON.stringify(getStatus(db, apps)));
     // Private: Cloudflare Access guards this path at the edge. Never cache or index it. Match the raw

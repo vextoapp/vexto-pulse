@@ -63,3 +63,12 @@ test('heartbeat is one image for screen readers, with no keyboard stops', () => 
   assert.match(html, /<svg class="ecg"[^>]*role="img" aria-label="Heartbeat line: 1 of 2 apps working"/);
   assert.doesNotMatch(html, /tabindex|aria-live/);
 });
+
+test('the status page links the icons and manifest', () => {
+  const html = renderPage(status([app('A', 'Family')]));
+  assert.match(html, /<link rel="icon" href="\/favicon.svg" type="image\/svg\+xml">/);
+  assert.match(html, /<link rel="apple-touch-icon" href="\/apple-touch-icon.png">/);
+  assert.match(html, /<link rel="manifest" href="\/manifest.webmanifest">/);
+  assert.equal(html.match(/content="#ffffff"/g)?.length, 1);
+  assert.equal(html.match(/content="#0f1110"/g)?.length, 1);
+});
