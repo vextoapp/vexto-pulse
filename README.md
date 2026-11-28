@@ -133,7 +133,22 @@ Check it: `systemctl status cloudflared`, and the tunnel shows one healthy conne
 
 ## Insights (v2)
 
-A private page at `/insights` shows each app's PageSpeed scores (mobile, weekly), Sentry errors (last 7 days and the week before), 30-day uptime, and a "needs attention" list. An app needs attention when it has any errors this week, performance below 50, accessibility below 90, uptime below 99%, or a certificate expiring within 14 days.
+A private page at `/insights` is your owner view. It talks to you and says what to do next:
+
+- **The headline and "Do this first":** this week's focus from the newest weekly digest, with 2–3 concrete steps and what "done" means. Nothing is shown here before the first Monday summary.
+- **How the week went:** the weekly summary as a card, with a week picker. Picking an older week changes only this card.
+- **Every app, with your next step,** in three groups:
+  - **Fix:** the app broke one of the digest's focus rules (before the first digest, the reasons below).
+  - **Set up error tracking:** no Sentry project is linked.
+  - **Healthy:** nothing to do.
+
+  Open an app to see its uptime, the four PageSpeed scores and errors, plus short notes. The notes cover uptime between 99% and 99.5%, speed under 80, best practices or SEO under 100, and missing or failed PageSpeed. They never change the focus.
+- **Retire, grow or keep updating:** a placeholder until Pulse reads visits (Cloudflare Web Analytics) and last commits (GitHub).
+- **Reference:** what each number means, and the focus rules.
+
+The older "reasons" list still feeds the Fix group before a digest exists. An app has a reason when it has any errors this week, performance below 50, accessibility below 90, uptime below 99%, or a certificate expiring within 14 days.
+
+Both pages serve the pulse icon as `/favicon.svg` and `/apple-touch-icon.png`, plus a web manifest (`/manifest.webmanifest`), so they can be added to a phone's home screen.
 
 `src/insights.ts` runs daily at 04:30 (`vexto-pulse-insights.timer`). Each run pulls Sentry; PageSpeed runs for every app when the last successful run is 6 or more days old, and in between retries only the apps whose last run failed. Run it by hand with `npm run insights` (set `PULSE_FORCE_PAGESPEED=1` to rerun PageSpeed early).
 
@@ -163,7 +178,7 @@ A missing key or token skips that source; the rest still runs.
 
 ## Weekly digest (v3)
 
-Every Monday at 07:00 (the Pi's time zone, Australia/Sydney), `src/digest.ts` sums up the previous Monday–Sunday week and emails it with Resend. The same summary, stored as sent, appears at the top of `/insights` with a week picker.
+Every Monday at 07:00 (the Pi's time zone, Australia/Sydney), `src/digest.ts` sums up the previous Monday–Sunday week and emails it with Resend. The same summary, stored as sent, appears on `/insights` ("How the week went") with a week picker, and its focus leads the page.
 
 **What it contains:**
 - **A verdict:** a good, mixed or rough week, with uptime, outages and errors.
